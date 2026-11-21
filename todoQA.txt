@@ -30,7 +30,7 @@ Situações: [fazer] [futuro] [resolvido dd/mm/aaaa] [rejeitado]
 27 [resolvido 21/11/2026] Todos são coautores do projeto: Ângelo Vieira dos Reis, Rafael dos Santos Esteche, Jean Carlos Scheunemann, Henrique Gonçalves Andrade, Roger Toscan Spagnolo, Eduardo Walker e Fabrício Ardais Medeiros (rodapé do app, relatório e README); a lista de coautores na geração dos dados continua no relatório.
 28 [resolvido 21/11/2026] Matheus Albarracin Caselatto como coautor na coleta dos dados (relatório, rodapé do app e README).
 29 [resolvido 21/11/2026] Matheus Albarracin Caselatto também como coautor do projeto e na citação.
-30 [resolvido 21/11/2026] Giusepe Stefanello (com um p só) como coautor do projeto e na citação.
+30 [resolvido 21/11/2026] Giusepe Stefanello (com um p só) como Matheus: coautor do projeto, na citação e na geração e coleta dos dados.
 
 === O QUE FALTA
 13 [fazer] Conferir a impressão em PDF num computador de verdade (quebras de página dos mapas grandes).
