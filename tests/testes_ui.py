@@ -93,6 +93,8 @@ async def main():
             txt = await pg.inner_text('#anova-corpo')
             t('ANOVA com inclinação lateral', 'Lat' in txt)
             await pg.goto(URL + '#relatorio'); await pg.wait_for_timeout(500)
+            rel4 = await pg.inner_text('#relatorio-corpo')
+            t('sem exemplo, o relatório não traz coautores da coleta', 'geração e coleta' not in rel4 and 'Coautores do projeto' in rel4)
             await pg.screenshot(path='/tmp/ui_quatro.png', full_page=True)
         # adubo em massa por intervalo de coleta (ISO 5690-2)
         if len(sys.argv) > 2:
@@ -119,6 +121,7 @@ async def main():
             await pg.screenshot(path='/tmp/ui_adubo.png', full_page=True)
         # menu lateral no celular
         await pg.set_viewport_size({'width': 390, 'height': 800}); await pg.goto(URL + '#inicio'); await pg.wait_for_timeout(200)
+        t('rodapé sem coautores da coleta', 'geração e coleta' not in await pg.inner_text('footer'))
         await pg.click('.sidebar-toggle'); await pg.wait_for_timeout(300)
         t('menu abre no celular', await pg.evaluate("document.body.classList.contains('sidebar-aberta')"))
         await pg.click('#etapas a[data-pag=dosadores]'); await pg.wait_for_timeout(300)

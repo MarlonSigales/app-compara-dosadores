@@ -419,7 +419,7 @@ const App = (() => {
             const r = await fetch('exemplo/DadosDosadores.zip');
             if (!r.ok) throw new Error('arquivo de exemplo não encontrado');
             estado = novoEstado(); res = null;
-            const base = { produto: 'sementes', semente: 'milho híbrido P1225VYHR, peneira C1', tipo: 'pneumatico', unidade: 'ms', xrefModo: 'xref', xref: 0.25, intervalo: 30 };
+            const base = { produto: 'sementes', semente: 'milho híbrido P1225VYHR, peneira C1', tipo: 'pneumatico', unidade: 'ms', xrefModo: 'xref', xref: 0.25, intervalo: 30, exemplo: true };
             const meta = {
                 JD: { ...base, marca: 'John Deere', modelo: 'MaxEmerge 5', tubo: 'tubo condutor do ensaio de Andrade' },
                 PP: { ...base, marca: 'Precision Planting', modelo: 'vSet', tubo: 'tubo condutor do ensaio de Andrade' },
