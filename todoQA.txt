@@ -32,6 +32,8 @@ Situações: [fazer] [futuro] [resolvido dd/mm/aaaa] [rejeitado]
 29 [resolvido 21/11/2026] Matheus Albarracin Caselatto também como coautor do projeto e na citação.
 30 [resolvido 21/11/2026] Giusepe Stefanello (com um p só) como Matheus: coautor do projeto, na citação e na geração e coleta dos dados.
 31 [resolvido 21/11/2026] Coautores na geração e coleta dos dados saem do rodapé do app e só aparecem no relatório quando os dados de exemplo são usados.
+32 [resolvido 21/11/2026] Removidos o símbolo e as menções à equipe Inova Agro/EMBRAPII; no lugar, o símbolo do Centro de Engenharias (CEng/UFPel), copiado do Gerador de Horários.
+33 [resolvido 21/11/2026] Ádamo de Sousa Araújo na equipe de desenvolvimento (rodapé, relatório, citação e README).
 
 === O QUE FALTA
 13 [fazer] Conferir a impressão em PDF num computador de verdade (quebras de página dos mapas grandes).

@@ -493,16 +493,16 @@ const Relatorio = (() => {
 
     /** Endereço do app, coautores na geração dos dados e pedido de citação (sempre no relatório). */
     const LINK_APP = 'https://marlonsigales.github.io/app-compara-dosadores/index.html';
-    const DESENVOLVEDOR = 'Marlon Soares Sigales';
+    const DESENVOLVEDOR = 'Marlon Soares Sigales e Ádamo de Sousa Araújo';
     const COAUTORES_PROJETO = ['Ângelo Vieira dos Reis', 'Rafael dos Santos Esteche', 'Jean Carlos Scheunemann', 'Henrique Gonçalves Andrade', 'Matheus Albarracin Caselatto', 'Roger Toscan Spagnolo', 'Eduardo Walker', 'Fabrício Ardais Medeiros', 'Giusepe Stefanello'];
     const COAUTORES = ['Marlon Soares Sigales', 'Ângelo Vieira dos Reis', 'Rafael dos Santos Esteche', 'Jean Carlos Scheunemann', 'Henrique Gonçalves Andrade', 'Matheus Albarracin Caselatto', 'Giusepe Stefanello'];
-    const CITACAO = 'SIGALES, Marlon Soares; SPAGNOLO, Roger Toscan; WALKER, Eduardo; MEDEIROS, Fabrício Ardais; REIS, Ângelo Vieira dos; ESTECHE, Rafael dos Santos; SCHEUNEMANN, Jean Carlos; ANDRADE, Henrique Gonçalves; CASELATTO, Matheus Albarracin; STEFANELLO, Giusepe. <i>Comparador de Dosadores</i>: análise de ensaios de dosadores de sementes e adubo por ANOVA e Random Forest + SHAP. Pelotas: Laboratório de Instrumentação Agrícola, Universidade Federal de Pelotas, 2026. Aplicativo web. Disponível em: ' + LINK_APP + '.';
+    const CITACAO = 'SIGALES, Marlon Soares; ARAÚJO, Ádamo de Sousa; SPAGNOLO, Roger Toscan; WALKER, Eduardo; MEDEIROS, Fabrício Ardais; REIS, Ângelo Vieira dos; ESTECHE, Rafael dos Santos; SCHEUNEMANN, Jean Carlos; ANDRADE, Henrique Gonçalves; CASELATTO, Matheus Albarracin; STEFANELLO, Giusepe. <i>Comparador de Dosadores</i>: análise de ensaios de dosadores de sementes e adubo por ANOVA e Random Forest + SHAP. Pelotas: Laboratório de Instrumentação Agrícola, Universidade Federal de Pelotas, 2026. Aplicativo web. Disponível em: ' + LINK_APP + '.';
     /** Os dados de exemplo (ensaios de Andrade) têm coautores na geração e coleta; só aparecem quando o exemplo é usado. */
     const usaExemplo = (estado) => estado.dosadores.some((d) => d.exemplo);
     function blocoCreditos(estado) {
         const hoje = new Date().toLocaleDateString('pt-BR', { day: 'numeric', month: 'short', year: 'numeric' }).replace(/ de /g, ' ');
         return `<div class="creditos"><p><b>Ferramenta:</b> Comparador de Dosadores — <a href="${LINK_APP}">${LINK_APP}</a></p>
-        <p><b>Desenvolvedor:</b> ${esc(DESENVOLVEDOR)} · <b>Coautores do projeto:</b> ${COAUTORES_PROJETO.map(esc).join(', ')}.</p>
+        <p><b>Equipe de desenvolvimento:</b> ${esc(DESENVOLVEDOR)} · <b>Coautores do projeto:</b> ${COAUTORES_PROJETO.map(esc).join(', ')}.</p>
         ${usaExemplo(estado) ? `<p><b>Coautores na geração e coleta dos dados de exemplo:</b> ${COAUTORES.map(esc).join(', ')}.</p>` : ''}
         <p><b>Como citar:</b> ao usar resultados gerados por esta ferramenta, cite-a como: ${CITACAO} Acesso em: ${esc(hoje)}.</p>
         <p><b>Anexo:</b> solicitamos que este relatório completo seja incluído como anexo nos trabalhos (artigos, TCC, dissertações, teses e relatórios técnicos) que usarem seus resultados.</p></div>`;
@@ -521,7 +521,7 @@ const Relatorio = (() => {
 
     /** HTML autônomo (para baixar). */
     function htmlAutonomo(ctx, css) {
-        return `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${esc(ctx.estado.projeto.titulo || 'Relatório — Comparador de Dosadores')}</title><style>${css}</style></head><body class="relatorio-solo"><main class="relatorio">${documento(ctx)}<footer class="rel-rodape">Comparador de Dosadores — ${LINK_APP} · Desenvolvedor: ${DESENVOLVEDOR} · Coautores do projeto: ${COAUTORES_PROJETO.map(esc).join(', ')} ·${usaExemplo(ctx.estado) ? ` Coautores na geração e coleta dos dados de exemplo: ${COAUTORES.map(esc).join(', ')} ·` : ''} Inclua este relatório como anexo dos trabalhos que usarem seus resultados · Laboratório de Instrumentação Agrícola · UFPel</footer></main></body></html>`;
+        return `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${esc(ctx.estado.projeto.titulo || 'Relatório — Comparador de Dosadores')}</title><style>${css}</style></head><body class="relatorio-solo"><main class="relatorio">${documento(ctx)}<footer class="rel-rodape">Comparador de Dosadores — ${LINK_APP} · Equipe de desenvolvimento: ${DESENVOLVEDOR} · Coautores do projeto: ${COAUTORES_PROJETO.map(esc).join(', ')} ·${usaExemplo(ctx.estado) ? ` Coautores na geração e coleta dos dados de exemplo: ${COAUTORES.map(esc).join(', ')} ·` : ''} Inclua este relatório como anexo dos trabalhos que usarem seus resultados · Laboratório de Instrumentação Agrícola · UFPel</footer></main></body></html>`;
     }
 
     return { documento, htmlAutonomo, secaoBloco, tabelaAnova, pressupostos, tabelaTukey, tabelaDesdobramento, tabelaRF, htmlCurva, mapaResposta, mapaRF, mapaDiferenca, mapaErro, mapasErro, mapasShap, curvasVelocidade, barrasComparativo, conclusoes, respNome };

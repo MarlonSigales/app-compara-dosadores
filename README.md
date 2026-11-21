@@ -31,7 +31,7 @@ O botão **Exemplo** carrega os ensaios de Andrade (John Deere MaxEmerge 5, Prec
 - `js/app.js` — interface
 - `js/vendor/` — jStat e JSZip (cópias locais)
 - `css/style.css` — identidade visual compartilhada (Gestão de Projetos, QFD, Apoio à Escrita de Patentes)
-- `img/` — logos Inova Agro/EMBRAPII, NIMEq e InstAgri e ícone do app
+- `img/` — logos do Centro de Engenharias (CEng/UFPel), NIMEq e InstAgri e ícone do app
 - `tests/` — `testes.js` (núcleo, conferido com statsmodels/scipy) e `testes_ui.py` (Playwright)
 
 ## Testes
@@ -42,9 +42,9 @@ python3 tests/testes_ui.py tests/exemplo_quatro_partes.zip tests/exemplo_adubo.z
 ```
 
 ## Autoria e citação
-Desenvolvedor: Marlon Soares Sigales. Coautores do projeto: Ângelo Vieira dos Reis, Rafael dos Santos Esteche, Jean Carlos Scheunemann, Henrique Gonçalves Andrade, Matheus Albarracin Caselatto, Roger Toscan Spagnolo, Eduardo Walker, Fabrício Ardais Medeiros, Giusepe Stefanello. Coautores na geração e coleta dos dados de exemplo (ensaios em `exemplo/`, citados no relatório só quando o exemplo é usado): Marlon Soares Sigales, Ângelo Vieira dos Reis, Rafael dos Santos Esteche, Jean Carlos Scheunemann, Henrique Gonçalves Andrade, Matheus Albarracin Caselatto, Giusepe Stefanello.
+Equipe de desenvolvimento: Marlon Soares Sigales e Ádamo de Sousa Araújo. Coautores do projeto: Ângelo Vieira dos Reis, Rafael dos Santos Esteche, Jean Carlos Scheunemann, Henrique Gonçalves Andrade, Matheus Albarracin Caselatto, Roger Toscan Spagnolo, Eduardo Walker, Fabrício Ardais Medeiros, Giusepe Stefanello. Coautores na geração e coleta dos dados de exemplo (ensaios em `exemplo/`, citados no relatório só quando o exemplo é usado): Marlon Soares Sigales, Ângelo Vieira dos Reis, Rafael dos Santos Esteche, Jean Carlos Scheunemann, Henrique Gonçalves Andrade, Matheus Albarracin Caselatto, Giusepe Stefanello.
 
-Como citar: SIGALES, Marlon Soares; SPAGNOLO, Roger Toscan; WALKER, Eduardo; MEDEIROS, Fabrício Ardais; REIS, Ângelo Vieira dos; ESTECHE, Rafael dos Santos; SCHEUNEMANN, Jean Carlos; ANDRADE, Henrique Gonçalves; CASELATTO, Matheus Albarracin; STEFANELLO, Giusepe. *Comparador de Dosadores*: análise de ensaios de dosadores de sementes e adubo por ANOVA e Random Forest + SHAP. Pelotas: Laboratório de Instrumentação Agrícola, Universidade Federal de Pelotas, 2026. Aplicativo web. Disponível em: https://marlonsigales.github.io/app-compara-dosadores/index.html.
+Como citar: SIGALES, Marlon Soares; ARAÚJO, Ádamo de Sousa; SPAGNOLO, Roger Toscan; WALKER, Eduardo; MEDEIROS, Fabrício Ardais; REIS, Ângelo Vieira dos; ESTECHE, Rafael dos Santos; SCHEUNEMANN, Jean Carlos; ANDRADE, Henrique Gonçalves; CASELATTO, Matheus Albarracin; STEFANELLO, Giusepe. *Comparador de Dosadores*: análise de ensaios de dosadores de sementes e adubo por ANOVA e Random Forest + SHAP. Pelotas: Laboratório de Instrumentação Agrícola, Universidade Federal de Pelotas, 2026. Aplicativo web. Disponível em: https://marlonsigales.github.io/app-compara-dosadores/index.html.
 
 Inclua o relatório completo gerado pelo app como anexo dos trabalhos que usarem seus resultados.
 
