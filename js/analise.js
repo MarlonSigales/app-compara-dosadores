@@ -181,7 +181,7 @@ const Analise = (() => {
 
     /** Médias por tratamento de todas as respostas (para as tabelas descritivas). */
     function descritiva(rows, fatores) {
-        const ks = Object.keys(rows[0] || {}).filter((k) => ['A', 'F', 'M', 'CVA', 'CV', 'media'].includes(k));
+        const ks = Object.keys(rows[0] || {}).filter((k) => ['A', 'F', 'M', 'CVA', 'CV', 'media', 'vazao', 'desvio', 'erroAbs', 'amplitude', 'doseAplicada'].includes(k));
         const g = new Map();
         for (const r of rows) {
             const k = fatores.map((f) => r[f]).join('|');

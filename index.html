@@ -6,32 +6,54 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="Compara dosadores de sementes e adubo a partir dos dados brutos de bancada: ANOVA fatorial com Tukey e desdobramentos, Random Forest + SHAP e relatório completo. Roda no navegador.">
     <title>Comparador de Dosadores</title>
-    <link rel="stylesheet" href="css/estilo.css?v=20261121a">
+    <link rel="icon" type="image/png" href="img/icone-instagri.png">
+    <link rel="apple-touch-icon" href="img/icone-instagri-180.png">
+    <link rel="stylesheet" href="css/style.css?v=20261121b">
+    <link rel="stylesheet" href="css/estilo.css?v=20261121b">
 </head>
 <body>
-<header class="topo">
-    <a class="marca" href="#inicio"><img src="img/logos/lia.png" alt="" onerror="this.style.display='none'"><span>Comparador de Dosadores</span></a>
-    <span class="sub">Engenharia Agrícola · CEng/UFPel</span>
-    <div class="acoes-topo">
-        <button type="button" data-acao="novo" title="Começar um projeto vazio">🗋 Novo</button>
-        <button type="button" data-acao="exemplo" title="Carregar os ensaios de Andrade (John Deere, Precision Planting e Matermacc)">📘 Exemplo</button>
-        <button type="button" data-acao="exportar" title="Baixar o projeto inteiro, com os dados brutos">⬇ Exportar JSON</button>
-        <label class="botao" title="Abrir um projeto exportado">⬆ Importar JSON<input type="file" id="importar-json" accept=".json,application/json" hidden></label>
-    </div>
+<header class="topbar">
+    <button type="button" class="sidebar-toggle" aria-label="Abrir o menu de etapas"></button>
+    <a href="#inicio" class="topbar-marca" title="Início">
+        <img src="img/logo-instagri.png" alt="" height="36">
+        <span>Comparador de Dosadores</span>
+    </a>
+    <span class="topbar-projeto"><span id="topbar-projeto-nome">Sem título</span></span>
+    <span class="topbar-selo" title="Os dados ficam guardados neste navegador">guardado no navegador</span>
+    <button type="button" class="btn btn-primary topbar-zip" data-acao="ir-relatorio" title="Abrir o relatório">📄 Relatório</button>
 </header>
 
-<nav class="etapas" id="etapas">
-    <a href="#inicio" data-pag="inicio"><b>1</b> Início</a>
-    <a href="#dosadores" data-pag="dosadores"><b>2</b> Dosadores e dados</a>
-    <a href="#fatores" data-pag="fatores"><b>3</b> Nome dos arquivos</a>
-    <a href="#analise" data-pag="analise"><b>4</b> Análise</a>
-    <a href="#anova" data-pag="anova"><b>5</b> ANOVA</a>
-    <a href="#rf" data-pag="rf"><b>6</b> RF + SHAP</a>
-    <a href="#graficos" data-pag="graficos"><b>7</b> Gráficos e cores</a>
-    <a href="#relatorio" data-pag="relatorio"><b>8</b> Relatório</a>
-</nav>
+<div class="app-corpo">
+    <aside class="sidebar" id="sidebar">
+        <nav id="etapas" aria-label="Etapas">
+            <span class="sidebar-grupo">Dados</span>
+            <a class="sidebar-link" href="#inicio" data-pag="inicio"><span class="sidebar-num">1</span>Início</a>
+            <a class="sidebar-link" href="#dosadores" data-pag="dosadores"><span class="sidebar-num">2</span>Dosadores e dados</a>
+            <a class="sidebar-link" href="#fatores" data-pag="fatores"><span class="sidebar-num">3</span>Nome dos arquivos</a>
+            <a class="sidebar-link" href="#analise" data-pag="analise"><span class="sidebar-num">4</span>Análise</a>
+            <span class="sidebar-grupo">Resultados</span>
+            <a class="sidebar-link" href="#anova" data-pag="anova"><span class="sidebar-num">5</span>ANOVA</a>
+            <a class="sidebar-link" href="#rf" data-pag="rf"><span class="sidebar-num">6</span>RF + SHAP</a>
+            <a class="sidebar-link" href="#graficos" data-pag="graficos"><span class="sidebar-num">7</span>Gráficos e cores</a>
+            <a class="sidebar-link" href="#relatorio" data-pag="relatorio"><span class="sidebar-num">8</span>Relatório</a>
+        </nav>
+        <div class="sidebar-arquivo">
+            <span class="sidebar-arquivo-rotulo">Arquivo do projeto</span>
+            <button type="button" class="sidebar-arquivo-btn" data-acao="exportar" title="Baixar o projeto inteiro, com os dados brutos">💾 Exportar projeto (.json)</button>
+            <label class="sidebar-arquivo-link" title="Abrir um projeto exportado">📂 Continuar um projeto (.json)<input type="file" id="importar-json" accept=".json,application/json" hidden></label>
+            <details class="sidebar-arquivo-mais">
+                <summary>Mais opções</summary>
+                <div>
+                    <button type="button" class="sidebar-arquivo-link" data-acao="exemplo" title="Carregar os ensaios de Andrade (John Deere, Precision Planting e Matermacc)">🧪 Exemplo completo</button>
+                    <button type="button" class="sidebar-arquivo-link" data-acao="novo">🗑️ Começar do zero (apagar tudo)</button>
+                </div>
+            </details>
+        </div>
+    </aside>
+    <div class="sidebar-fundo" data-acao="fechar-menu"></div>
 
-<main id="conteudo">
+    <div class="app-conteudo">
+<main id="conteudo" class="main-content container">
     <section class="pagina" id="pag-inicio">
         <h1>Comparador de Dosadores</h1>
         <p class="intro">Compara dosadores de sementes ou adubo a partir dos dados brutos de bancada (intervalos entre sementes em tempo ou distância, ou massa por amostra). Faz a ANOVA fatorial com todas as interações, os testes de Tukey e os desdobramentos como no trabalho de Henrique Gonçalves Andrade, e a versão corrigida do Random Forest + SHAP. No fim, gera um relatório completo com as tabelas e os gráficos, com escala de cor ajustável.</p>
@@ -106,28 +128,31 @@
 </main>
 
 <div id="progresso" class="progresso" hidden><div class="caixa"><p id="progresso-msg">Calculando…</p><div class="trilho"><div id="progresso-barra"></div></div></div></div>
-<div id="aviso" class="aviso" hidden></div>
+<div id="aviso" class="aviso-flutuante" role="status" aria-live="polite"></div>
 
-<footer class="rodape">
-    <div class="logos">
-        <img src="img/logos/ufpel.png" alt="Universidade Federal de Pelotas" onerror="this.style.display='none'">
-        <img src="img/logos/ceng.png" alt="Centro de Engenharias - UFPel" onerror="this.style.display='none'">
-        <img src="img/logos/ea.png" alt="Engenharia Agrícola - UFPel" onerror="this.style.display='none'">
-        <img src="img/logos/lia.png" alt="Laboratório de Instrumentação Agrícola - UFPel" onerror="this.style.display='none'">
+<footer class="footer">
+            <div class="container">
+                <div class="footer-logos">
+                    <img src="img/logo-inovaagro.png" alt="EMBRAPII - Inova Agro - UFPel" height="64">
+                    <img src="img/logo-nimeq.png" alt="NIMEq" height="64">
+                    <img src="img/logo-instagri.png" alt="Laboratório de Instrumentação Agrícola - UFPel" height="64">
+                </div>
+                <p>Critérios de espaçamento de Coelho (1996) e análise baseada no trabalho de Henrique Gonçalves Andrade. Ferramenta de apoio: confira os pressupostos antes de concluir.</p>
+                <p class="footer-credits"><strong>Desenvolvedor:</strong> Marlon Soares Sigales · <strong>Equipe Inova Agro - UFPel - EMBRAPII</strong></p>
+                <p class="footer-credits">© 2026 Marlon Sigales. Todos os direitos reservados: copiar, reproduzir ou alterar o código exige autorização do autor.</p>
+            </div>
+        </footer>
     </div>
-    <p>© 2026 Comparador de Dosadores</p>
-    <p class="footer-credits"><strong>Desenvolvedor:</strong> Marlon Soares Sigales<br>Laboratório de Instrumentação Agrícola · Engenharia Agrícola · Centro de Engenharias · Universidade Federal de Pelotas</p>
-    <p class="licenca">© 2026 Marlon Sigales. Todos os direitos reservados: copiar, reproduzir ou alterar o código exige autorização do autor.</p>
-</footer>
+</div>
 
 <script src="js/vendor/jstat.min.js"></script>
 <script src="js/vendor/jszip.min.js"></script>
-<script src="js/estatistica.js?v=20261121a"></script>
-<script src="js/floresta.js?v=20261121a"></script>
-<script src="js/dados.js?v=20261121a"></script>
-<script src="js/analise.js?v=20261121a"></script>
-<script src="js/graficos.js?v=20261121a"></script>
-<script src="js/relatorio.js?v=20261121a"></script>
-<script src="js/app.js?v=20261121a"></script>
+<script src="js/estatistica.js?v=20261121b"></script>
+<script src="js/floresta.js?v=20261121b"></script>
+<script src="js/dados.js?v=20261121b"></script>
+<script src="js/analise.js?v=20261121b"></script>
+<script src="js/graficos.js?v=20261121b"></script>
+<script src="js/relatorio.js?v=20261121b"></script>
+<script src="js/app.js?v=20261121b"></script>
 </body>
 </html>

@@ -60,6 +60,18 @@ t('classificação A/F/M', m.A === 60 && m.M === 20 && m.F === 20);
 const md = Dados.metricasParcela([0.25, 0.1, 0.5], 'm', 0.25, 10);
 t('classificação por distância', perto(md.A, 100 / 3, 1e-9));
 
+// referência agronômica e adubo (ISO 5690-2)
+const rs = Dados.referenciaAgronomica({ unidade: 'ms', xrefModo: 'populacao', populacao: 80000, espacamento: 0.5 });
+t('população 80 mil/ha a 0,5 m → Xref 0,25 m', perto(rs.xref, 0.25, 1e-12));
+t('referência obrigatória', !Dados.referenciaAgronomica({ unidade: 'ms', xrefModo: 'xref', xref: null }).ok);
+const ra = Dados.referenciaAgronomica({ unidade: 'g', dose: 300, espacamento: 0.5, intervalo: 30 });
+t('adubo 300 kg/ha a 0,5 m → 15 g/m', perto(ra.gPorMetro, 15, 1e-12));
+const ma = Dados.metricasParcela([440, 450, 460, 450, 450], 'g', null, 3.6, {}, { ...ra, dose: 300 });
+t('alvo por coleta = 15 g/m × 1 m/s × 30 s = 450 g', perto(ma.alvo, 450, 1e-12));
+t('desvio da dose = 0%', perto(ma.desvio, 0, 1e-9) && perto(ma.doseAplicada, 300, 1e-9));
+t('amplitude ISO = (460 − 440)/450', perto(ma.amplitude, 100 * 20 / 450, 1e-9));
+t('vazão = 15 g/s', perto(ma.vazao, 15, 1e-12));
+
 // floresta + SHAP: eficiência (soma dos φ = previsão − base)
 const rows = jd; const fat = ['cond', 'ang', 'vel'];
 const niv = Object.fromEntries(fat.map((f) => [f, Estat.niveisDe(rows, f)]));

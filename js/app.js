@@ -53,7 +53,7 @@ const App = (() => {
         idSeq = Math.max(1, ...estado.dosadores.map((d) => d.id + 1));
     }
 
-    function aviso(msg, ms = 3500) { const a = $('#aviso'); a.textContent = msg; a.hidden = false; clearTimeout(a._t); a._t = setTimeout(() => { a.hidden = true; }, ms); }
+    function aviso(msg, ms = 3500) { const a = $('#aviso'); a.textContent = msg; a.classList.add('visivel'); clearTimeout(a._t); a._t = setTimeout(() => a.classList.remove('visivel'), ms); }
     function baixar(nome, conteudo, tipo) {
         const b = conteudo instanceof Blob ? conteudo : new Blob([conteudo], { type: tipo });
         const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = nome; document.body.appendChild(a); a.click();
@@ -63,7 +63,8 @@ const App = (() => {
 
     // ---------- dosadores ----------
     function novoDosador(nome) {
-        return { id: idSeq++, nome: nome || `Dosador ${estado.dosadores.length + 1}`, marca: '', modelo: '', produto: 'sementes', semente: '', tipo: 'pneumatico', tubo: '', unidade: 'ms', xrefModo: 'xref', xref: 0.25, densidade: 4, arquivos: [] };
+        // a referência agronômica fica em branco de propósito: o usuário precisa informar
+        return { id: idSeq++, nome: nome || `Dosador ${estado.dosadores.length + 1}`, marca: '', modelo: '', produto: 'sementes', semente: '', tipo: 'pneumatico', tubo: '', unidade: 'ms', xrefModo: 'populacao', xref: null, densidade: null, populacao: null, espacamento: null, dose: null, intervalo: 30, arquivos: [] };
     }
     async function lerArquivos(lista) {
         const out = [];
@@ -119,12 +120,11 @@ const App = (() => {
                     <label><span>Modelo</span><input data-campo="modelo" value="${esc(d.modelo)}" placeholder="ex.: MaxEmerge 5"></label>
                     <label><span>Produto dosado</span><select data-campo="produto"><option value="sementes"${d.produto === 'sementes' ? ' selected' : ''}>Sementes</option><option value="adubo"${d.produto === 'adubo' ? ' selected' : ''}>Adubo</option></select></label>
                     <label><span>Semente / adubo (cultura, híbrido, peneira)</span><input data-campo="semente" value="${esc(d.semente)}" placeholder="ex.: milho P1225VYHR C1"></label>
-                    <label><span>Tipo de dosador (limites de Coelho)</span><select data-campo="tipo">${tiposD}</select></label>
+                    ${massa ? '' : `<label><span>Tipo de dosador (limites de Coelho)</span><select data-campo="tipo">${tiposD}</select></label>`}
                     <label><span>Tubo condutor (qual)</span><input data-campo="tubo" value="${esc(d.tubo)}" placeholder="ex.: tubo original do fabricante, 50 cm"></label>
                     <label><span>Dado bruto</span><select data-campo="unidade">${tiposU}</select></label>
-                    ${massa ? '' : `<label><span>Referência</span><select data-campo="xrefModo"><option value="xref"${d.xrefModo === 'xref' ? ' selected' : ''}>Espaçamento de referência Xref (m)</option><option value="densidade"${d.xrefModo === 'densidade' ? ' selected' : ''}>Sementes por metro</option></select></label>
-                    ${d.xrefModo === 'densidade' ? `<label><span>Sementes por metro</span><input type="number" step="0.1" min="0.1" data-campo="densidade" value="${d.densidade}"></label>` : `<label><span>X<sub>ref</sub> (m)</span><input type="number" step="0.01" min="0.01" data-campo="xref" value="${d.xref}"></label>`}`}
                 </div>
+                ${blocoReferencia(d, massa)}
                 <div class="barra-acoes">
                     <label class="botao">📄 Subir CSV<input type="file" data-acao="csv" accept=".csv,.txt" multiple hidden></label>
                     <label class="botao">📦 Subir ZIP<input type="file" data-acao="zip" accept=".zip" hidden></label>
@@ -134,6 +134,25 @@ const App = (() => {
                 ${d.arquivos.length ? `<div class="chips">${d.arquivos.slice(0, 12).map((a) => `<span class="chip">${esc(a.nome)}</span>`).join('')}${d.arquivos.length > 12 ? `<span class="chip">+${d.arquivos.length - 12}</span>` : ''}</div>` : ''}</div>
             </div>`;
         }).join('');
+    }
+    /** Campos da referência agronômica (obrigatória): sementes ou adubo. */
+    function blocoReferencia(d, massa) {
+        const ref = Dados.referenciaAgronomica(d);
+        const num = (campo, rotulo, passo, dica) => `<label><span>${rotulo}</span><input type="number" step="${passo}" min="0" data-campo="${campo}" value="${d[campo] ?? ''}" placeholder="${dica}" class="${d[campo] > 0 ? '' : 'erro-campo'}"></label>`;
+        let h = `<div class="ref-agro"><b>Referência agronômica</b> <span class="nota">(obrigatória)</span><div class="campos">`;
+        if (massa) {
+            h += num('dose', 'Dose de adubo (kg/ha)', 'any', 'ex.: 300') + num('espacamento', 'Espaçamento entre linhas (m)', 'any', 'ex.: 0,50') + num('intervalo', 'Intervalo de cada coleta (s)', 'any', 'ISO 5690-2: 30 s');
+            h += '</div>';
+            if (ref.ok) h += `<p class="nota">Taxa por metro de linha = ${f1(ref.gPorMetro, 2)} g/m. Massa esperada por coleta = taxa × velocidade × intervalo (ex.: a 8 km/h, ${f1(ref.gPorMetro * (8 / 3.6) * d.intervalo, 1)} g).</p>`;
+        } else {
+            h += `<label><span>Informar como</span><select data-campo="xrefModo"><option value="populacao"${d.xrefModo === 'populacao' ? ' selected' : ''}>População (sementes/ha) e espaçamento</option><option value="densidade"${d.xrefModo === 'densidade' ? ' selected' : ''}>Sementes por metro</option><option value="xref"${d.xrefModo === 'xref' ? ' selected' : ''}>Espaçamento de referência Xref (m)</option></select></label>`;
+            if (d.xrefModo === 'populacao') h += num('populacao', 'População (sementes/ha)', '100', 'ex.: 70000') + num('espacamento', 'Espaçamento entre linhas (m)', 'any', 'ex.: 0,50');
+            else if (d.xrefModo === 'densidade') h += num('densidade', 'Sementes por metro', 'any', 'ex.: 4');
+            else h += num('xref', 'Xref (m)', 'any', 'ex.: 0,25');
+            h += '</div>';
+            if (ref.ok) h += `<p class="nota">X<sub>ref</sub> = ${f1(ref.xref, 3)} m (${f1(1 / ref.xref, 2)} sementes/m).</p>`;
+        }
+        return h + '</div>';
     }
     function dosadorDe(el) { const c = el.closest('.cartao'); return c && estado.dosadores.find((d) => d.id === +c.dataset.id); }
 
@@ -151,6 +170,7 @@ const App = (() => {
         if (!arqs.length) { erros.push('Suba os arquivos dos dosadores.'); return erros; }
         if (porN.size > 1) erros.push('Os arquivos não têm todos o mesmo número de partes no nome.');
         const N = [...porN.keys()][0];
+        if (estado.padrao.papeis.length !== N && porN.size === 1) { estado.padrao.papeis = Dados.sugerirPapeis(N, arqs.map((x) => Dados.tokens(x.nome))); salvar(); }
         const p = estado.padrao.papeis;
         if (p.length !== N) { erros.push('Defina o papel de cada parte do nome.'); return erros; }
         p.forEach((x, i) => { if (!x) erros.push(`Diga o que é a ${i + 1}ª parte do nome.`); });
@@ -229,6 +249,7 @@ const App = (() => {
         const erros = validarPadrao();
         const un = unidadeComum();
         if (!un && estado.dosadores.length) erros.push('Misture só dosadores com o mesmo tipo de dado (espaçamento ou massa).');
+        for (const d of estado.dosadores) if (!Dados.referenciaAgronomica(d).ok) erros.push(`Informe a referência agronômica do dosador ${d.nome} (cartão na etapa 2).`);
         const resp = Dados.respostas(un || 'ms');
         if (!resp[a.resposta]) a.resposta = Object.keys(resp)[0];
         const lv = erros.length ? {} : niveisPorFator();
@@ -278,7 +299,7 @@ const App = (() => {
         const prog = async (t, msg) => { $('#progresso-barra').style.width = `${Math.round(t * 100)}%`; if (msg) $('#progresso-msg').textContent = msg; await new Promise((r) => setTimeout(r, 0)); };
         try {
             for (const d of estado.dosadores) d.conducao = estado.conducaoRotulos;
-            const est = { ...estado, dosadores: estado.dosadores.map((d) => ({ ...d, xref: d.xrefModo === 'densidade' ? 1 / d.densidade : d.xref })) };
+            const est = { ...estado, dosadores: estado.dosadores.map((d) => { const r = Dados.referenciaAgronomica(d); return { ...d, xref: r.xref, adubo: r.gPorMetro ? { gPorMetro: r.gPorMetro, intervalo: d.intervalo, dose: d.dose } : null }; }) };
             est.analise = { ...estado.analise, limite: limiteAtual() };
             res = await Analise.executar(est, prog);
             abaAtual = { anova: 0, rf: 0, graf: 0 };
@@ -347,8 +368,8 @@ const App = (() => {
         let h = '';
         const cv = R.curvasVelocidade(b, res.resposta, c.limite, rot);
         if (cv) h += `<figure>${cv}<figcaption>${esc(rot)} × velocidade.</figcaption></figure>`;
-        h += `<figure>${R.mapaResposta(b, c.escala, res.resposta, rot + ' — média ANOVA', res.resposta === 'A', c.limite)}<figcaption>Médias de tratamento${res.resposta === 'A' ? `; ponto = IC95% abaixo de ${f1(c.limite, 0)}%` : ''}.</figcaption></figure>`;
-        h += `<figure>${R.mapaRF(b.rf, b.fatores, c.escala, res.resposta, rot + ' — previsão RF')}<figcaption>Previsão do RF fora da amostra.</figcaption></figure>`;
+        h += `<figure>${R.mapaResposta(b, c.escala, res.resposta, rot + ' — média ANOVA', res.resposta === 'A', c.limite, c.escalaDiv)}<figcaption>Médias de tratamento${res.resposta === 'A' ? `; ponto = IC95% abaixo de ${f1(c.limite, 0)}%` : ''}.</figcaption></figure>`;
+        h += `<figure>${R.mapaRF(b.rf, b.fatores, c.escala, res.resposta, rot + ' — previsão RF', c.escalaDiv)}<figcaption>Previsão do RF fora da amostra.</figcaption></figure>`;
         h += `<figure>${R.mapaDiferenca(b.rf, b.fatores, c.escalaDiv)}<figcaption>RF − ANOVA.</figcaption></figure>`;
         for (const m of R.mapasShap(b.rf, b.fatores, c.escalaDiv)) h += `<figure>${m.svg}<figcaption>SHAP de ${esc(Analise.nomeFator(m.fator).toLowerCase())}.</figcaption></figure>`;
         $('#graficos-corpo').innerHTML = h;
@@ -360,12 +381,21 @@ const App = (() => {
     // ---------- navegação ----------
     const PAGINAS = { inicio: () => {}, dosadores: renderDosadores, fatores: renderFatores, analise: renderAnalise, anova: renderAnova, rf: renderRF, graficos: renderGraficos, relatorio: renderRelatorio };
     function paginaAtual() { const p = location.hash.replace('#', ''); return PAGINAS[p] ? p : 'inicio'; }
+    let renderizando = false, pendente = false;
     function render() {
+        if (renderizando) { pendente = true; return; }
+        renderizando = true;
+        try { renderAgora(); } finally { renderizando = false; }
+        if (pendente) { pendente = false; setTimeout(render, 0); }
+    }
+    function renderAgora() {
         const p = paginaAtual();
         $$('.pagina').forEach((s) => s.classList.toggle('ativa', s.id === `pag-${p}`));
-        $$('#etapas a').forEach((a) => a.classList.toggle('ativa', a.dataset.pag === p));
+        $$('#etapas a').forEach((a) => a.classList.toggle('ativo', a.dataset.pag === p));
+        document.body.classList.remove('sidebar-aberta');
+        $('#topbar-projeto-nome').textContent = estado.projeto.titulo || (estado.dosadores.length ? estado.dosadores.map((d) => d.nome).join(' × ') : 'Sem título');
         const prontas = { dosadores: estado.dosadores.some((d) => d.arquivos.length), fatores: !validarPadrao().length, analise: !!res, anova: !!res, rf: !!res, graficos: !!res, relatorio: !!res };
-        $$('#etapas a').forEach((a) => a.classList.toggle('pronta', !!prontas[a.dataset.pag]));
+        $$('#etapas a').forEach((a) => a.classList.toggle('etapa-feito', !!prontas[a.dataset.pag]));
         PAGINAS[p]();
     }
 
@@ -375,7 +405,7 @@ const App = (() => {
             const r = await fetch('exemplo/DadosDosadores.zip');
             if (!r.ok) throw new Error('arquivo de exemplo não encontrado');
             estado = novoEstado(); res = null;
-            const base = { produto: 'sementes', semente: 'milho híbrido P1225VYHR, peneira C1', tipo: 'pneumatico', unidade: 'ms', xrefModo: 'xref', xref: 0.25 };
+            const base = { produto: 'sementes', semente: 'milho híbrido P1225VYHR, peneira C1', tipo: 'pneumatico', unidade: 'ms', xrefModo: 'xref', xref: 0.25, intervalo: 30 };
             const meta = {
                 JD: { ...base, marca: 'John Deere', modelo: 'MaxEmerge 5', tubo: 'tubo condutor do ensaio de Andrade' },
                 PP: { ...base, marca: 'Precision Planting', modelo: 'vSet', tubo: 'tubo condutor do ensaio de Andrade' },
@@ -392,12 +422,15 @@ const App = (() => {
     // ---------- eventos ----------
     function ligar() {
         window.addEventListener('hashchange', render);
+        $('.sidebar-toggle').addEventListener('click', () => document.body.classList.toggle('sidebar-aberta'));
         document.addEventListener('click', async (ev) => {
             const b = ev.target.closest('[data-acao]');
             if (b && b.tagName !== 'INPUT') {
                 const ac = b.dataset.acao;
                 if (ac === 'novo') { if (confirm('Começar um projeto vazio? O projeto atual será apagado deste navegador (exporte antes se quiser guardar).')) { estado = novoEstado(); res = null; salvar(); location.hash = '#inicio'; render(); } }
                 else if (ac === 'exemplo') exemplo();
+                else if (ac === 'ir-relatorio') location.hash = '#relatorio';
+                else if (ac === 'fechar-menu') document.body.classList.remove('sidebar-aberta');
                 else if (ac === 'exportar') baixar(`comparador-dosadores-${new Date().toISOString().slice(0, 10)}.json`, JSON.stringify(estado), 'application/json');
                 else if (ac === 'add-dosador') { estado.dosadores.push(novoDosador()); invalidar(); salvar(); render(); }
                 else if (ac === 'rem-dosador') { const d = dosadorDe(b); if (d && confirm(`Excluir o dosador ${d.nome}?`)) { estado.dosadores = estado.dosadores.filter((x) => x !== d); invalidar(); salvar(); render(); } }
@@ -434,9 +467,10 @@ const App = (() => {
             if (t.dataset.acao === 'zip' && t.files[0]) { const d = dosadorDe(t); const g = await lerZip(t.files[0]); d.arquivos = mesclar(d.arquivos, [...g.values()].flat()); invalidar(); salvar(); render(); return; }
             if (t.dataset.campo) {
                 const d = dosadorDe(t); const k = t.dataset.campo;
-                d[k] = t.type === 'number' ? Number(t.value) : t.value;
+                d[k] = t.type === 'number' ? (t.value === '' ? null : Number(String(t.value).replace(',', '.'))) : t.value;
+                if (k === 'unidade' && Dados.UNIDADES[d.unidade].tipo === 'massa') d.produto = 'adubo';
                 invalidar(); salvar();
-                if (['unidade', 'xrefModo', 'tubo'].includes(k)) render();
+                if (['unidade', 'xrefModo', 'tubo', 'xref', 'densidade', 'populacao', 'espacamento', 'dose', 'intervalo', 'produto'].includes(k)) render();
                 return;
             }
             if (t.dataset.papel !== undefined) { estado.padrao.papeis[+t.dataset.papel] = t.value; estado.analise.recorte = {}; invalidar(); salvar(); render(); return; }

@@ -4,7 +4,9 @@ App web (roda só no navegador, sem servidor e sem CDN) para comparar dosadores 
 
 **Entrada:** um CSV por tratamento (primeira coluna `n`, uma coluna por repetição) com o intervalo entre sementes em tempo (ms ou s) ou distância (mm, cm ou m), ou a massa por amostra (g). Os fatores vêm do nome do arquivo, separados por `_`, por exemplo `c_-5_08.csv` (tubo, ângulo, velocidade) ou `c_-5_0_08.csv` (tubo, ângulo, ângulo, velocidade). Quando há dois ângulos, o app pergunta qual é o lateral e qual é o longitudinal.
 
-**Cadastro de cada dosador:** marca, modelo, sementes ou adubo, semente/adubo usado, tipo de dosador (limites de Coelho, 1996), tubo condutor usado e X<sub>ref</sub> (ou sementes por metro).
+**Cadastro de cada dosador:** marca, modelo, sementes ou adubo, semente/adubo usado, tipo de dosador (limites de Coelho, 1996), tubo condutor usado e a referência agronômica, obrigatória: para sementes, população (sementes/ha) e espaçamento entre linhas, sementes por metro ou X<sub>ref</sub>; para adubo, dose (kg/ha), espaçamento entre linhas e intervalo de coleta.
+
+**Adubo (massa por intervalo de coleta):** segue a ISO 5690-2 — vazão, CV entre coletas (uniformidade), amplitude relativa (D<sub>máx</sub> − D<sub>mín</sub>)/D e desvio em relação à dose regulada (exatidão).
 
 **Análises:**
 - espaçamentos múltiplos, aceitáveis e falhos (Coelho, 1996), CV dos aceitáveis e de todos os espaçamentos, por parcela;
@@ -12,7 +14,7 @@ App web (roda só no navegador, sem servidor e sem CDN) para comparar dosadores 
 - Random Forest + SHAP na forma proposta: mesma resposta da ANOVA, cada fator como um jogador, validação agrupada por tratamento, importância por permutação e SHAP exato com interações;
 - comparação entre dosadores (dosador como fator), só com os tratamentos comuns a todos.
 
-**Saídas:** abas de ANOVA, RF + SHAP e gráficos (mapas de calor com escala de cor editável: vermelho–amarelo–verde, plasma, viridis ou personalizada), e relatório completo para imprimir/salvar em PDF ou baixar em HTML. O projeto inteiro (com os dados brutos) é exportado e importado em JSON.
+**Saídas:** abas de ANOVA, RF + SHAP e gráficos (mapas de calor com escala de cor editável: vermelho–amarelo–verde, plasma, viridis ou personalizada), e relatório completo (dados, metodologia passo a passo e resultados) para imprimir/salvar em PDF ou baixar em HTML. O projeto inteiro (com os dados brutos) é exportado e importado em JSON.
 
 O botão **Exemplo** carrega os ensaios de Andrade (John Deere MaxEmerge 5, Precision Planting vSet e Matermacc) de `exemplo/DadosDosadores.zip`.
 
@@ -26,14 +28,15 @@ O botão **Exemplo** carrega os ensaios de Andrade (John Deere MaxEmerge 5, Prec
 - `js/relatorio.js` — tabelas, mapas e relatório
 - `js/app.js` — interface
 - `js/vendor/` — jStat e JSZip (cópias locais)
-- `img/logos/` — `ufpel.png`, `ceng.png`, `ea.png`, `lia.png` (os mesmos dos outros apps)
+- `css/style.css` — identidade visual compartilhada (Gestão de Projetos, QFD, Apoio à Escrita de Patentes)
+- `img/` — logos Inova Agro/EMBRAPII, NIMEq e InstAgri e ícone do app
 - `tests/` — `testes.js` (núcleo, conferido com statsmodels/scipy) e `testes_ui.py` (Playwright)
 
 ## Testes
 ```
 node tests/testes.js
 python3 -m http.server 8765 &   # na pasta do app
-python3 tests/testes_ui.py [zip_com_4_partes_no_nome]
+python3 tests/testes_ui.py tests/exemplo_quatro_partes.zip tests/exemplo_adubo.zip
 ```
 
 © 2026 Marlon Sigales. Todos os direitos reservados (ver LICENSE).

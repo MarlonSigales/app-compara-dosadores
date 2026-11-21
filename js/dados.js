@@ -2,7 +2,7 @@
  * © 2026 Comparador de Dosadores — Marlon Sigales. Todos os direitos reservados; copiar, reproduzir ou alterar exige autorização do autor (ver LICENSE).
  *
  * Leitura dos dados brutos, interpretação do nome dos arquivos e cálculo das respostas por parcela
- * (espaçamentos aceitáveis, falhos e múltiplos segundo Coelho, 1996; CV; ou dose por amostra no caso de massa).
+ * (espaçamentos aceitáveis, falhos e múltiplos segundo Coelho, 1996; CV; ou, para adubo em massa por intervalo de coleta, vazão, CV e desvio da dose pela ISO 5690-2).
  */
 'use strict';
 
@@ -21,7 +21,7 @@ const Dados = (() => {
         mm: { rotulo: 'Distância entre sementes (mm)', tipo: 'dist', fator: 0.001 },
         cm: { rotulo: 'Distância entre sementes (cm)', tipo: 'dist', fator: 0.01 },
         m: { rotulo: 'Distância entre sementes (m)', tipo: 'dist', fator: 1 },
-        g: { rotulo: 'Massa por amostra (g) — adubo ou sementes a granel', tipo: 'massa', fator: 1 }
+        g: { rotulo: 'Massa por intervalo de coleta (g) — adubo, ISO 5690-2', tipo: 'massa', fator: 1 }
     };
     /** Critérios de Coelho (1996) por tipo de dosador. */
     const TIPOS_DOSADOR = {
@@ -91,6 +91,23 @@ const Dados = (() => {
         return f;
     }
 
+    /**
+     * Referência agronômica.
+     * Sementes: Xref (m) direto, sementes por metro, ou população (sementes/ha) com espaçamento entre linhas (m).
+     * Adubo: dose (kg/ha) com espaçamento entre linhas (m) → taxa por metro de linha (g/m) = dose·e/10.
+     */
+    function referenciaAgronomica(d) {
+        if (UNIDADES[d.unidade]?.tipo === 'massa') {
+            const ok = d.dose > 0 && d.espacamento > 0 && d.intervalo > 0;
+            return { ok, gPorMetro: ok ? d.dose * d.espacamento / 10 : NaN, intervalo: d.intervalo };
+        }
+        let xref = NaN;
+        if (d.xrefModo === 'densidade') xref = d.densidade > 0 ? 1 / d.densidade : NaN;
+        else if (d.xrefModo === 'populacao') xref = d.populacao > 0 && d.espacamento > 0 ? 10000 / (d.populacao * d.espacamento) : NaN;
+        else xref = d.xref > 0 ? d.xref : NaN;
+        return { ok: Number.isFinite(xref), xref };
+    }
+
     /** Referência de intervalo: Tref (ms) = 3,6·Xref(mm)/V ou Xref em metros para distância. */
     function referencia(unidade, xrefM, vel) {
         const u = UNIDADES[unidade];
@@ -100,13 +117,26 @@ const Dados = (() => {
     }
 
     /** Respostas de uma parcela (uma repetição de um tratamento). */
-    function metricasParcela(vals0, unidade, xrefM, vel, opc = {}) {
+    function metricasParcela(vals0, unidade, xrefM, vel, opc = {}, adubo = null) {
         const u = UNIDADES[unidade];
         const vals = opc.descartarPrimeiro ? vals0.slice(1) : vals0;
         if (u.tipo === 'massa') {
-            const m = vals.reduce((s, v) => s + v, 0) / vals.length;
-            const sd = Math.sqrt(vals.reduce((s, v) => s + (v - m) ** 2, 0) / (vals.length - 1));
-            return { n: vals.length, media: m, CV: 100 * sd / m };
+            // ISO 5690-2: vazão = massa por unidade de tempo; uniformidade pelo CV; exatidão pelo desvio em relação à dose regulada
+            const n = vals.length;
+            const m = vals.reduce((s, v) => s + v, 0) / n;
+            const sd = Math.sqrt(vals.reduce((s, v) => s + (v - m) ** 2, 0) / Math.max(n - 1, 1));
+            const out = { n, media: m, CV: 100 * sd / m, amplitude: 100 * (Math.max(...vals) - Math.min(...vals)) / m };
+            if (adubo && adubo.intervalo > 0) {
+                out.vazao = m / adubo.intervalo; // g/s
+                if (vel > 0 && adubo.gPorMetro > 0) {
+                    const alvo = adubo.gPorMetro * (vel / 3.6) * adubo.intervalo; // g por coleta
+                    out.alvo = alvo;
+                    out.desvio = 100 * (m - alvo) / alvo;
+                    out.erroAbs = Math.abs(out.desvio);
+                    out.doseAplicada = adubo.dose ? adubo.dose * m / alvo : NaN; // kg/ha
+                }
+            }
+            return out;
         }
         const ref = referencia(unidade, xrefM, vel);
         const r = vals.map((v) => (v * u.fator) / ref); // razão Xi/Xref (ou Ti/Tref)
@@ -138,7 +168,7 @@ const Dados = (() => {
                 const vel = f.vel;
                 const nRep = opc.repeticoes ? Math.min(opc.repeticoes, arq.reps.length) : arq.reps.length;
                 for (let k = 0; k < nRep; k++) {
-                    const m = metricasParcela(arq.reps[k], d.unidade, d.xref, vel, opc);
+                    const m = metricasParcela(arq.reps[k], d.unidade, d.xref, vel, opc, d.adubo);
                     out.push({ dosador: d.nome, ...f, rep: k + 1, arquivo: arq.nome, ...m });
                 }
             }
@@ -148,11 +178,11 @@ const Dados = (() => {
 
     /** Respostas disponíveis conforme o tipo de dado. */
     function respostas(unidade) {
-        if (UNIDADES[unidade]?.tipo === 'massa') return { CV: 'CV da massa por amostra (%)', media: 'Massa média por amostra (g)' };
+        if (UNIDADES[unidade]?.tipo === 'massa') return { CV: 'CV da vazão entre coletas (%) — uniformidade, ISO 5690-2', desvio: 'Desvio em relação à dose regulada (%) — exatidão', erroAbs: 'Erro absoluto em relação à dose (%)', amplitude: 'Amplitude relativa (Dmáx − Dmín)/D (%) — ISO 5690-2', doseAplicada: 'Dose aplicada (kg/ha)', vazao: 'Vazão (g/s)' };
         return { A: 'Espaçamentos aceitáveis (%)', F: 'Espaçamentos falhos (%)', M: 'Espaçamentos múltiplos (%)', CVA: 'CV dos espaçamentos aceitáveis (%)', CV: 'CV de todos os espaçamentos (%)' };
     }
 
-    return { PAPEIS, UNIDADES, TIPOS_DOSADOR, lerCSV, tokens, baseNome, numero, sugerirPapeis, fatoresDoArquivo, metricasParcela, parcelas, respostas, referencia };
+    return { PAPEIS, UNIDADES, TIPOS_DOSADOR, lerCSV, tokens, baseNome, numero, sugerirPapeis, fatoresDoArquivo, metricasParcela, parcelas, respostas, referencia, referenciaAgronomica };
 })();
 
 if (typeof module !== 'undefined') module.exports = Dados;

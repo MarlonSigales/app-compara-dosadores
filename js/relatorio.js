@@ -11,7 +11,7 @@ const Relatorio = (() => {
     const esc = G.esc;
     const f1 = (v, d = 2) => G.fmt(v, d);
     const fp = (p) => (!Number.isFinite(p) ? '—' : (p < 0.0001 ? '&lt;0,0001' : f1(p, 4)));
-    const CURTOS = { A: 'Aceitáveis (%)', F: 'Falhos (%)', M: 'Múltiplos (%)', CVA: 'CV dos aceitáveis (%)', CV: 'CV (%)', media: 'Massa (g)' };
+    const CURTOS = { A: 'Aceitáveis (%)', F: 'Falhos (%)', M: 'Múltiplos (%)', CVA: 'CV dos aceitáveis (%)', CV: 'CV (%)', media: 'Massa (g)', vazao: 'Vazão (g/s)', desvio: 'Desvio da dose (%)', erroAbs: 'Erro absoluto (%)', amplitude: 'Amplitude (%)', doseAplicada: 'Dose (kg/ha)' };
     const rotCurto = (y) => CURTOS[y] || y;
     const respNome = (y, unidade) => (Dados.respostas(unidade)[y.replace('_t', '')] || y) + (y.endsWith('_t') ? ' (arcsen√p)' : '');
 
@@ -90,31 +90,45 @@ const Relatorio = (() => {
         return { ps, eixoX: A.nomeFator(col) + (col === 'vel' ? ' (km/h)' : ''), lin };
     }
 
-    /** Escala para a resposta: em F, M e CV (menor é melhor) as cores se invertem e vão de 0 a um máximo. */
-    function escalaPara(cfgEsc, resposta) {
-        const menorMelhor = ['F', 'M', 'CVA', 'CV'].includes(resposta);
-        if (!menorMelhor) return { paradas: cfgEsc.paradas, cor: G.escala(cfgEsc.paradas) };
+    /**
+     * Escala para a resposta. % aceitáveis: escala do usuário. Menor é melhor (F, M, CV, erro, amplitude): cores invertidas
+     * de 0 a um máximo. Desvio da dose: escala divergente em torno de 0. Dose e vazão: escala esticada na faixa dos dados.
+     */
+    function escalaPara(cfgEsc, resposta, valores = [], cfgDiv = null) {
         const p = [...cfgEsc.paradas].sort((a, b) => a[0] - b[0]);
         const v0 = p[0][0], v1 = p[p.length - 1][0];
-        const vmax = cfgEsc.maxInvertida || ((resposta === 'CV' || resposta === 'CVA') ? 60 : 30);
+        const fin = valores.filter(Number.isFinite);
+        if (resposta === 'desvio' && cfgDiv) {
+            const lim = Math.max(5, Math.ceil(Math.max(...fin.map(Math.abs), 1) / 5) * 5);
+            const paradas = cfgDiv.paradas.map(([v, c]) => [v * lim, c]);
+            return { paradas, cor: G.escala(paradas), esticada: false };
+        }
+        if (['vazao', 'doseAplicada', 'media'].includes(resposta) && fin.length) {
+            const a = Math.min(...fin), b = Math.max(...fin) === a ? a + 1 : Math.max(...fin);
+            const paradas = p.map(([v, c]) => [a + (b - a) * (v - v0) / (v1 - v0), c]);
+            return { paradas, cor: G.escala(paradas), esticada: false };
+        }
+        const menorMelhor = ['F', 'M', 'CVA', 'CV', 'erroAbs', 'amplitude'].includes(resposta);
+        if (!menorMelhor) return { paradas: cfgEsc.paradas, cor: G.escala(cfgEsc.paradas) };
+        const vmax = cfgEsc.maxInvertida || Math.max(['CV', 'CVA', 'amplitude'].includes(resposta) ? 30 : 20, Math.ceil(Math.max(...fin, 0) / 5) * 5);
         const paradas = p.map(([v, c]) => [vmax * (v1 - v) / (v1 - v0), c]).sort((a, b) => a[0] - b[0]);
         return { paradas, cor: G.escala(paradas) };
     }
 
-    function mapaResposta(bloco, cfgEsc, resposta, rotulo, comMarcas, limite) {
-        const e = escalaPara(cfgEsc, resposta);
+    function mapaResposta(bloco, cfgEsc, resposta, rotulo, comMarcas, limite, cfgDiv) {
+        const e = escalaPara(cfgEsc, resposta, (bloco.icOrig || bloco.ic).map((c) => c.media), cfgDiv);
         const menorMelhor = ['F', 'M', 'CVA', 'CV'].includes(resposta);
         const { ps, eixoX } = paineis(bloco.icOrig || bloco.ic, bloco.fatores, (c) => c.media,
             comMarcas ? (c) => (menorMelhor ? c.lo > limite : c.hi < limite) : null,
             (c) => `${c.niveis.map((v, i) => `${A.nomeCurto(bloco.fatores[i])} ${A.rotNivel(bloco.fatores[i], v)}`).join(' · ')}: ${f1(c.media, 1)} (IC95% ${f1(c.lo, 1)} a ${f1(c.hi, 1)})`);
-        return G.mapas(ps, { cor: e.cor, paradas: e.paradas, esticada: cfgEsc.esticada, rotuloBarra: rotCurto(resposta), eixoX, colunas: Math.min(3, ps.length) });
+        return G.mapas(ps, { cor: e.cor, paradas: e.paradas, esticada: e.esticada ?? cfgEsc.esticada, rotuloBarra: rotCurto(resposta), eixoX, colunas: Math.min(3, ps.length), formatoBarra: (v) => f1(v, Math.abs(v) < 10 && v % 1 ? 1 : 0) });
     }
 
-    function mapaRF(rf, fatores, cfgEsc, resposta, rotulo) {
-        const e = escalaPara(cfgEsc, resposta);
+    function mapaRF(rf, fatores, cfgEsc, resposta, rotulo, cfgDiv) {
+        const e = escalaPara(cfgEsc, resposta, rf.trat.map((t) => t.media), cfgDiv);
         const cel = rf.trat.map((t) => ({ niveis: fatores.map((f) => t[f]), v: t.predCV, m: t.media }));
         const { ps, eixoX } = paineis(cel, fatores, (c) => c.v, null, (c) => `previsto ${f1(c.v, 1)} · observado ${f1(c.m, 1)}`);
-        return G.mapas(ps, { cor: e.cor, paradas: e.paradas, esticada: cfgEsc.esticada, rotuloBarra: rotCurto(resposta), eixoX, colunas: Math.min(3, ps.length) });
+        return G.mapas(ps, { cor: e.cor, paradas: e.paradas, esticada: e.esticada ?? cfgEsc.esticada, rotuloBarra: rotCurto(resposta), eixoX, colunas: Math.min(3, ps.length), formatoBarra: (v) => f1(v, Math.abs(v) < 10 && v % 1 ? 1 : 0) });
     }
 
     function mapaDiferenca(rf, fatores, cfgDiv) {
@@ -224,7 +238,8 @@ const Relatorio = (() => {
             const ic = bloco.icOrig || bloco.ic; const abaixo = ic.filter((c) => c.hi < limite).length;
             out.push(`${abaixo} de ${ic.length} tratamentos ficaram com o intervalo de confiança de 95% inteiro abaixo de ${f1(limite, 0)}% de aceitáveis.`);
         }
-        const ord = [...(bloco.icOrig || bloco.ic)].sort((a, b) => b.media - a.media);
+        const nota = resposta === 'desvio' ? (c) => -Math.abs(c.media) : (['F', 'M', 'CVA', 'CV', 'erroAbs', 'amplitude'].includes(resposta) ? (c) => -c.media : (c) => c.media);
+        const ord = [...(bloco.icOrig || bloco.ic)].sort((a, b) => nota(b) - nota(a));
         const rot = (c) => c.niveis.map((v, i) => `${A.nomeCurto(bloco.fatores[i])} ${A.rotNivel(bloco.fatores[i], v)}`).join(', ');
         if (ord.length > 2) out.push(`Melhor tratamento: ${esc(rot(ord[0]))} (${f1(ord[0].media, 1)}). Pior: ${esc(rot(ord[ord.length - 1]))} (${f1(ord[ord.length - 1].media, 1)}).`);
         if (bloco.sw.p < 0.05 || bloco.lv.p < 0.05) out.push('Os pressupostos da ANOVA não foram todos atendidos: confira a análise com a transformação arcsen√p (configuração da análise) antes de concluir.');
@@ -246,7 +261,7 @@ const Relatorio = (() => {
         h += `<h3>${num}.2 Comportamento</h3>`;
         const cv = curvasVelocidade(bloco, res.resposta, limite, rotOrig);
         if (cv) h += `<figure>${cv}<figcaption>${esc(rotOrig)} em função da velocidade (média dos demais fatores).</figcaption></figure>`;
-        h += `<figure>${mapaResposta(bloco, ctx.escala, res.resposta, rotOrig, false, limite)}<figcaption>${esc(rotOrig)} por tratamento (média das repetições).</figcaption></figure>`;
+        h += `<figure>${mapaResposta(bloco, ctx.escala, res.resposta, rotOrig, false, limite, ctx.escalaDiv)}<figcaption>${esc(rotOrig)} por tratamento (média das repetições).</figcaption></figure>`;
         h += `<h3>${num}.3 ANOVA (${esc(rot)})</h3>${tabelaAnova(bloco.an, a.alfa)}`;
         h += `<h4>Pressupostos</h4>${pressupostos(bloco)}`;
         h += `<h4>Teste de Tukey — efeitos principais</h4><div class="grade-tabs">${bloco.tukeyPrincipais.map((t) => `<div>${tabelaTukey(t, t.fator)}</div>`).join('')}</div>`;
@@ -255,7 +270,7 @@ const Relatorio = (() => {
             for (const d of bloco.desdobramentos) h += `<h5>${esc(A.nomeFator(d.fator))} dentro de ${esc(d.dentro.map(A.nomeFator).join(' × '))} (interação ${esc(A.nomeTermo(d.termo))})</h5>${tabelaDesdobramento(d)}`;
         }
         const marcas = res.resposta === 'A';
-        h += `<figure>${mapaResposta(bloco, ctx.escala, res.resposta, rotOrig + ' — média ANOVA', marcas, limite)}<figcaption>Médias de tratamento da ANOVA${marcas && res.resposta === 'A' ? `. Ponto: intervalo de confiança de 95% (QM do erro, ${bloco.an.erro.gl} GL) inteiro abaixo de ${f1(limite, 0)}%` : ''}.</figcaption></figure>`;
+        h += `<figure>${mapaResposta(bloco, ctx.escala, res.resposta, rotOrig + ' — média ANOVA', marcas, limite, ctx.escalaDiv)}<figcaption>Médias de tratamento da ANOVA${marcas && res.resposta === 'A' ? `. Ponto: intervalo de confiança de 95% (QM do erro, ${bloco.an.erro.gl} GL) inteiro abaixo de ${f1(limite, 0)}%` : ''}.</figcaption></figure>`;
         if (bloco.sig?.length) {
             h += `<h4>Ajuste sigmoidal (como em Andrade)</h4>${tabelaSigmoide(bloco.sig)}`;
             h += `<figure>${graficoSigmoide(bloco.sig.filter((s) => s.niveis.some((v) => v === 0) || bloco.sig.length <= 6).slice(0, 6), rotOrig, res.resposta === 'A' ? limite : null)}<figcaption>Ajuste sigmoidal${bloco.sig.length > 6 ? ' (combinações com ângulo 0°)' : ''}.</figcaption></figure>`;
@@ -264,24 +279,82 @@ const Relatorio = (() => {
         h += `<p>Mesma resposta da ANOVA (${esc(rotOrig)}, por parcela), cada fator como um único jogador, validação agrupada por tratamento (${a.folds} grupos; o modelo não vê nenhuma repetição do tratamento previsto), importância por permutação e SHAP exato com interações.</p>`;
         h += tabelaRF(bloco.rf);
         h += `<figure>${barrasComparativo(bloco.comp, titulo)}<figcaption>Parcela de cada efeito no total explicado: ANOVA × SHAP (efeitos principais e pares).</figcaption></figure>`;
-        h += `<figure>${mapaRF(bloco.rf, bloco.fatores, ctx.escala, res.resposta, rotOrig + ' — previsão RF')}<figcaption>Previsão do RF para tratamentos deixados de fora do treino.</figcaption></figure>`;
+        h += `<figure>${mapaRF(bloco.rf, bloco.fatores, ctx.escala, res.resposta, rotOrig + ' — previsão RF', ctx.escalaDiv)}<figcaption>Previsão do RF para tratamentos deixados de fora do treino.</figcaption></figure>`;
         h += `<figure>${mapaDiferenca(bloco.rf, bloco.fatores, ctx.escalaDiv)}<figcaption>Diferença entre a previsão do RF e a média observada (p.p.). Erros grandes nas bordas indicam que o RF não extrapola.</figcaption></figure>`;
         for (const m of mapasShap(bloco.rf, bloco.fatores, ctx.escalaDiv)) h += `<figure>${m.svg}<figcaption>Contribuição SHAP de ${esc(A.nomeFator(m.fator).toLowerCase())} em cada tratamento, em relação à média do modelo (${f1(bloco.rf.base, 1)}).</figcaption></figure>`;
         h += `<details class="apendice"><summary>Médias de todas as respostas por tratamento</summary>${tabelaDescritiva(bloco.desc, unidade)}</details>`;
         return h + '</section>';
     }
 
-    function secaoMetodo(ctx) {
+    function refTexto(d) {
+        const r = Dados.referenciaAgronomica(d);
+        if (Dados.UNIDADES[d.unidade].tipo === 'massa') return r.ok ? `${f1(d.dose, 0)} kg/ha, linhas a ${f1(d.espacamento, 2)} m (${f1(r.gPorMetro, 2)} g/m); coletas de ${f1(d.intervalo, 0)} s` : '—';
+        if (!r.ok) return '—';
+        const base = `X<sub>ref</sub> = ${f1(r.xref, 3)} m (${f1(1 / r.xref, 2)} sementes/m)`;
+        return d.xrefModo === 'populacao' ? `${Math.round(d.populacao).toLocaleString('pt-BR')} sementes/ha, linhas a ${f1(d.espacamento, 2)} m → ${base}` : base;
+    }
+
+    /** 1. Dados: o que foi ensaiado e o que entrou na análise. */
+    function secaoDados(ctx) {
         const { estado, res } = ctx;
         const a = estado.analise;
-        const linhasDos = estado.dosadores.map((d) => `<tr><td>${esc(d.nome)}</td><td>${esc([d.marca, d.modelo].filter(Boolean).join(' '))}</td><td>${esc(d.produto === 'adubo' ? 'Adubo' : 'Sementes')}${d.semente ? ' — ' + esc(d.semente) : ''}</td><td>${esc(Dados.TIPOS_DOSADOR[d.tipo]?.rotulo || '')}</td><td>${esc(d.tubo || '—')}</td><td>${esc(Dados.UNIDADES[d.unidade].rotulo)}</td><td>${Dados.UNIDADES[d.unidade].tipo === 'massa' ? '—' : f1(d.xref, 3) + ' m'}</td><td>${d.arquivos.length}</td></tr>`).join('');
+        const linhasDos = estado.dosadores.map((d) => {
+            const nInt = d.arquivos.reduce((s, x) => s + x.reps.reduce((t, r) => t + r.length, 0), 0);
+            return `<tr><td>${esc(d.nome)}</td><td>${esc([d.marca, d.modelo].filter(Boolean).join(' ') || '—')}</td><td>${esc(d.produto === 'adubo' ? 'Adubo' : 'Sementes')}${d.semente ? ' — ' + esc(d.semente) : ''}</td><td>${Dados.UNIDADES[d.unidade].tipo === 'massa' ? '—' : esc(Dados.TIPOS_DOSADOR[d.tipo]?.rotulo || '')}</td><td>${esc(d.tubo || '—')}</td><td>${esc(Dados.UNIDADES[d.unidade].rotulo)}</td><td>${refTexto(d)}</td><td>${d.arquivos.length}</td><td>${nInt.toLocaleString('pt-BR')}</td></tr>`;
+        }).join('');
         const papeis = estado.padrao.papeis.map((p, i) => `${i + 1}ª parte = ${esc(p === 'outro' ? (estado.padrao.nomesOutros?.[i] || 'outro fator') : (Dados.PAPEIS[p] || '—'))}`).join('; ');
-        return `<section class="bloco"><h2>1. Dados e método</h2>
-        <table class="tab"><thead><tr><th>Nome</th><th>Marca e modelo</th><th>Produto</th><th>Tipo</th><th>Tubo condutor</th><th>Dado bruto</th><th>X<sub>ref</sub></th><th>Arquivos</th></tr></thead><tbody>${linhasDos}</tbody></table>
-        <p>Nome dos arquivos: ${papeis}. Parcelas analisadas: ${res.nParcelas}${a.igualarRepeticoes ? ` (${res.minReps} repetições por tratamento, as primeiras de cada arquivo, para manter o delineamento balanceado)` : ''}.</p>
-        <p><b>Classificação dos espaçamentos (Coelho, 1996):</b> múltiplos X<sub>i</sub> &lt; 0,5·X<sub>ref</sub>; aceitáveis 0,5·X<sub>ref</sub> ≤ X<sub>i</sub> ≤ 1,5·X<sub>ref</sub>; falhos X<sub>i</sub> &gt; 1,5·X<sub>ref</sub>. Com dados em tempo, X<sub>ref</sub> vira T<sub>ref</sub> = 3,6·X<sub>ref</sub>/V (s, com X<sub>ref</sub> em m e V em km/h). Limite de desempenho: ${f1(ctx.limite, 0)}% de aceitáveis.</p>
-        <p><b>ANOVA:</b> delineamento inteiramente casualizado em fatorial completo, com todas as interações; teste F a ${f1(a.alfa * 100, 0)}%; Tukey para efeitos principais e desdobramento das interações significativas, sempre com o QM do erro do modelo completo; pressupostos por Shapiro-Wilk e Levene (Brown-Forsythe)${res.transformado ? '; resposta transformada por arcsen√p' : ''}.</p>
-        <p><b>Random Forest + SHAP (proposta):</b> ${a.arvores} árvores de regressão sobre a mesma resposta por parcela; condução como uma coluna 0/1, ângulos e velocidade numéricos e dosador em colunas agrupadas; validação cruzada agrupada por tratamento; importância por permutação; SHAP exato intervencional (fundo = tratamentos observados) com interações de pares.</p></section>`;
+        const todos = res.porDosador.flatMap((b) => b.rows);
+        const fatores = [...new Set(res.porDosador.flatMap((b) => b.fatores))];
+        const niveis = fatores.map((f) => `<tr><td>${esc(A.nomeFator(f))}</td><td>${Estat.niveisDe(todos, f).map((v) => esc(A.rotNivel(f, v))).join(', ')}</td><td>${Estat.niveisDe(todos, f).length}</td></tr>`).join('');
+        const rot = respNome(res.resposta, estado.dosadores[0].unidade);
+        const resumo = res.porDosador.map((b) => {
+            const v = b.rows.map((r) => r[res.resposta]).filter(Number.isFinite);
+            return `<tr><td>${esc(b.nome)}</td><td>${b.rows.length}</td><td>${b.ic.length}</td><td>${f1(Estat.media(v), 2)}</td><td>${f1(Estat.dp(v), 2)}</td><td>${f1(Math.min(...v), 2)}</td><td>${f1(Math.max(...v), 2)}</td></tr>`;
+        }).join('');
+        const conds = Object.entries(estado.conducaoRotulos || {}).map(([k, v]) => `"${esc(k)}" = ${esc(v)}`).join('; ');
+        return `<section class="bloco"><h2>1. Dados</h2>
+        <h3>1.1 Dosadores ensaiados</h3>
+        <table class="tab"><thead><tr><th>Nome</th><th>Marca e modelo</th><th>Produto</th><th>Tipo</th><th>Tubo condutor</th><th>Dado bruto</th><th>Referência agronômica</th><th>Arquivos</th><th>Valores brutos</th></tr></thead><tbody>${linhasDos}</tbody></table>
+        <h3>1.2 Fatores e níveis</h3>
+        <p>Nome dos arquivos: ${papeis}.${conds ? ` Condução: ${conds}.` : ''}</p>
+        <table class="tab"><thead><tr><th>Fator</th><th>Níveis analisados</th><th>Nº</th></tr></thead><tbody>${niveis}</tbody></table>
+        <h3>1.3 Parcelas analisadas</h3>
+        <p>${res.nParcelas} parcelas no total${a.igualarRepeticoes ? `, com ${res.minReps} repetições por tratamento` : ''}${a.descartarPrimeiro ? '; o primeiro intervalo de cada repetição foi descartado' : ''}${a.recorte && Object.values(a.recorte).some((x) => x && x.length) ? '; houve recorte de níveis (ver 1.2)' : ''}. Resumo de ${esc(rot)} por parcela:</p>
+        <table class="tab num"><thead><tr><th>Dosador</th><th>Parcelas</th><th>Tratamentos</th><th>Média</th><th>Desvio-padrão</th><th>Mínimo</th><th>Máximo</th></tr></thead><tbody>${resumo}</tbody></table></section>`;
+    }
+
+    /** 2. Metodologia passo a passo, com os valores efetivamente usados. */
+    function secaoMetodologia(ctx) {
+        const { estado, res } = ctx;
+        const a = estado.analise;
+        const massa = Dados.UNIDADES[estado.dosadores[0].unidade].tipo === 'massa';
+        const tempo = Dados.UNIDADES[estado.dosadores[0].unidade].tipo === 'tempo';
+        const fatTxt = [...new Set(res.porDosador.flatMap((b) => b.fatores))].map(A.nomeFator).join(', ');
+        const passos = [];
+        passos.push(`<b>Leitura dos dados brutos.</b> Cada arquivo CSV corresponde a um tratamento; a primeira coluna (índice <code>n</code>) é ignorada e cada coluna seguinte é uma repetição. Cada repetição é uma <b>parcela</b> e todas as respostas são calculadas por parcela, nunca por semente isolada. Células vazias são ignoradas. Os fatores de cada tratamento vêm das partes do nome do arquivo, separadas por "_" (seção 1.2).`);
+        if (massa) {
+            passos.push(`<b>Referência agronômica (adubo).</b> Taxa por metro de linha: q = D × e / 10, com D = dose (kg/ha) e e = espaçamento entre linhas (m), resultando em g/m. Massa esperada em cada coleta: m<sub>alvo</sub> = q × (V / 3,6) × Δt, com V em km/h e Δt = intervalo de coleta (s). Os valores usados estão na seção 1.1.`);
+            passos.push(`<b>Respostas por parcela (ISO 5690-2).</b> Com as n massas m<sub>i</sub> de uma parcela: média m̄; vazão = m̄ / Δt (g/s); uniformidade pelo coeficiente de variação CV = 100 · s / m̄, com s = desvio-padrão amostral; amplitude relativa = 100 · (m<sub>máx</sub> − m<sub>mín</sub>) / m̄ (ISO 5690-2, 7.1.2); exatidão pelo desvio em relação à dose regulada = 100 · (m̄ − m<sub>alvo</sub>) / m<sub>alvo</sub>, seu valor absoluto e a dose aplicada = D · m̄ / m<sub>alvo</sub> (kg/ha). A ISO 5690-2 define vazão como massa distribuída por unidade de tempo, usa leituras de 30 s no ensaio estático e prevê ensaios com o distribuidor inclinado (20%, cerca de 11°) e com níveis diferentes de adubo no depósito.`);
+        } else {
+            passos.push(`<b>Referência agronômica (sementes).</b> X<sub>ref</sub> = 10 000 / (P × e) quando informada a população P (sementes/ha) e o espaçamento entre linhas e (m); X<sub>ref</sub> = 1 / d quando informadas d sementes por metro; ou X<sub>ref</sub> informado diretamente.${tempo ? ' Como os dados estão em tempo, cada intervalo T<sub>i</sub> (ms) é comparado com T<sub>ref</sub> = 3,6 · X<sub>ref</sub> / V × 1000 (X<sub>ref</sub> em m, V em km/h), calculado para a velocidade de cada tratamento.' : ' Como os dados estão em distância, cada espaçamento X<sub>i</sub> é comparado diretamente com X<sub>ref</sub>.'}`);
+            passos.push(`<b>Classificação de cada espaçamento (Coelho, 1996).</b> Com a razão r = X<sub>i</sub> / X<sub>ref</sub> (ou T<sub>i</sub> / T<sub>ref</sub>): múltiplo se r &lt; 0,5; aceitável se 0,5 ≤ r ≤ 1,5; falho se r &gt; 1,5.`);
+            passos.push(`<b>Respostas por parcela.</b> % aceitáveis, % falhos e % múltiplos = número de espaçamentos de cada classe / total de espaçamentos da parcela × 100; CV dos aceitáveis = 100 · s / média das razões r dos espaçamentos aceitáveis; CV de todos os espaçamentos = o mesmo com todas as razões. Limite de desempenho adotado: ${f1(ctx.limite, 0)}% de aceitáveis (${esc(Dados.TIPOS_DOSADOR[estado.dosadores[0].tipo]?.rotulo || '')}, Coelho, 1996).`);
+        }
+        passos.push(`<b>Preparação do delineamento.</b> ${a.igualarRepeticoes ? `Foram usadas as ${res.minReps} primeiras repetições de cada arquivo, para que todos os tratamentos tenham o mesmo número de parcelas.` : 'Foram usadas todas as repetições de cada arquivo.'}${a.descartarPrimeiro ? ' O primeiro intervalo de cada repetição foi descartado (partida do disco).' : ''}${a.recorte && Object.values(a.recorte).some((x) => x && x.length) ? ' Só os níveis listados na seção 1.2 entraram na análise.' : ''} Variável resposta: ${esc(respNome(res.resposta, estado.dosadores[0].unidade))}${res.transformado ? ', transformada por y\' = arcsen(√(y/100)), em graus, para a ANOVA' : ''}.`);
+        passos.push(`<b>Análise de variância.</b> Delineamento inteiramente casualizado em esquema fatorial completo com os fatores ${esc(fatTxt)} e todas as suas interações, analisado separadamente para cada dosador: y = μ + efeitos principais + todas as interações + erro. Fatores com um único nível são retirados do modelo. Em delineamento balanceado, a soma de quadrados de cada termo é calculada pelas médias marginais (iguais às dos tipos I, II e III); em delineamento desbalanceado, pelo tipo II, por mínimos quadrados com codificação por efeitos. Para cada termo: QM = SQ / GL, F = QM / QM<sub>erro</sub>, Pr &gt; F pela distribuição F e η² parcial = SQ / (SQ + SQ<sub>erro</sub>). Também são informados R² = 1 − SQ<sub>erro</sub> / SQ<sub>total</sub> e CV = 100 · √QM<sub>erro</sub> / média geral. Nível de significância: ${f1(a.alfa * 100, 0)}%.`);
+        passos.push(`<b>Pressupostos.</b> Normalidade dos resíduos (y − média do tratamento) pelo teste de Shapiro-Wilk (algoritmo de Royston; acima de 5000 resíduos, amostra sistemática de 5000) e homogeneidade das variâncias entre tratamentos pelo teste de Levene centrado na mediana (Brown-Forsythe). Quando algum pressuposto não é atendido, recomenda-se repetir a análise com a transformação arco-seno.`);
+        passos.push(`<b>Teste de Tukey.</b> Para cada efeito principal, as médias marginais são comparadas pela diferença mínima significativa DMS = q<sub>α; k; GL erro</sub> · √(QM<sub>erro</sub> / n), com q da distribuição da amplitude estudentizada, k = número de médias e n = parcelas por média (Tukey-Kramer quando n difere). As letras agrupam médias consecutivas, em ordem decrescente, que não diferem entre si.`);
+        passos.push(`<b>Desdobramento das interações.</b> Para cada interação significativa, os níveis de cada fator foram comparados por Tukey dentro de cada combinação dos demais fatores da interação, sempre com o QM e os GL do erro do modelo completo. Desdobramentos com mais de ${a.maxGrupos || 40} grupos não são tabelados; nesse caso, a leitura é feita pelos mapas de calor e pelos intervalos de confiança.`);
+        passos.push(`<b>Intervalo de confiança de cada tratamento.</b> IC${f1((1 - a.alfa) * 100, 0)}% = média ± t<sub>${f1(1 - a.alfa / 2, 3)}; GL erro</sub> · √(QM<sub>erro</sub> / n). ${massa ? '' : `Nos mapas da ANOVA, o ponto marca os tratamentos cujo intervalo inteiro fica abaixo de ${f1(ctx.limite, 0)}%.`}`);
+        passos.push(`<b>Ajuste sigmoidal.</b> Em cada combinação dos demais fatores com pelo menos 4 velocidades, a média da resposta foi ajustada a f(V) = a / (1 + e<sup>−(V − x₀)/b</sup>) por mínimos quadrados não lineares (Levenberg-Marquardt), com R² = 1 − SQ<sub>resíduo</sub> / SQ<sub>total</sub>, como em Andrade.`);
+        passos.push(`<b>Random Forest (proposta de correção do RF+SHAP).</b> A mesma resposta por parcela da ANOVA (sem transformação) foi modelada por ${a.arvores} árvores de regressão, cada uma treinada numa amostra bootstrap, com divisões que minimizam a soma de quadrados, no mínimo 2 parcelas por folha e todos os fatores avaliados em cada divisão; a previsão é a média das árvores (semente aleatória fixa, para reprodutibilidade). Codificação: condução numa única coluna 0/1 (sem a coluna redundante), ângulos e velocidade como números e dosador em colunas indicadoras agrupadas.`);
+        passos.push(`<b>Validação do Random Forest.</b> Validação cruzada agrupada por tratamento em ${a.folds} grupos: as repetições de um mesmo tratamento ficam sempre no mesmo grupo, de modo que cada tratamento é previsto por um modelo que não viu nenhuma de suas repetições (${Math.max(50, Math.round(a.arvores / 2))} árvores em cada modelo da validação). São informados o R² no treino, o R² na validação e o erro por tratamento (previsão média × média observada).`);
+        passos.push(`<b>Importância por permutação.</b> No modelo completo, as colunas de cada fator foram embaralhadas juntas (5 repetições) e a importância é a queda média do R². Esse método não favorece fatores com muitos níveis, ao contrário da importância por impureza.`);
+        passos.push(`<b>SHAP exato com interações.</b> Para cada tratamento x, o valor de uma coalizão S de fatores é v(S) = média, sobre todos os tratamentos observados (fundo), da previsão com os fatores de S fixados nos níveis de x. O valor SHAP do fator i é φ<sub>i</sub> = Σ<sub>S</sub> |S|!(M − |S| − 1)!/M! · [v(S ∪ {i}) − v(S)], com M fatores, e as interações de pares seguem o índice de interação de Shapley (convenção do pacote shap, metade para cada fator do par). A soma dos φ com o valor de base (média do modelo) reproduz a previsão. Para comparar com a ANOVA, calcula-se a parcela de cada efeito principal e de cada par no total: SQ do termo na ANOVA e |valor SHAP| médio no RF.`);
+        if (res.conjunto) passos.push(`<b>Comparação entre dosadores.</b> O dosador entra como mais um fator, em nova ANOVA e novo RF+SHAP, usando apenas os tratamentos presentes em todos os dosadores${res.conjunto.excluidos ? ` (${res.conjunto.excluidos} parcelas ficaram de fora)` : ''}.`);
+        passos.push(`<b>Gráficos.</b> Mapas de calor com a escala ${esc(Graficos.PRESETS[estado.escala.preset]?.nome || 'personalizada')} (paradas: ${estado.escala.paradas.map(([v]) => f1(v, 0)).join(', ')}), interpolação linear entre paradas; em respostas em que menor é melhor, as cores são invertidas. SHAP e diferença RF − ANOVA usam a escala divergente ${esc(Graficos.PRESETS_DIV[estado.escalaDiv.preset]?.nome || 'personalizada')}, centrada em zero.`);
+        passos.push('<b>Software.</b> Comparador de Dosadores (aplicação web executada no navegador), com distribuições F, t, normal e da amplitude estudentizada da biblioteca jStat; ANOVA, Tukey e pressupostos conferidos com statsmodels e scipy nos dados de Andrade.');
+        return `<section class="bloco"><h2>2. Metodologia</h2><p>Os resultados das seções seguintes foram gerados nesta ordem:</p><ol class="metodo">${passos.map((x) => `<li>${x}</li>`).join('')}</ol></section>`;
     }
 
     const REFS = `<section class="bloco"><h2>Referências</h2><ul class="refs">
@@ -289,14 +362,16 @@ const Relatorio = (() => {
         <li>BREIMAN, L. Random forests. <i>Machine Learning</i>, v. 45, p. 5–32, 2001.</li>
         <li>COELHO, J. L. D. Ensaio e certificação de máquinas para a semeadura. In: MIALHE, L. G. <i>Máquinas agrícolas: ensaio e certificação</i>. Piracicaba: FEALQ, 1996. p. 55–70.</li>
         <li>ESTECHE, Rafael dos Santos. <i>Aplicação de técnicas de inteligência artificial para verificar influência na qualidade de semeadura de precisão</i>. Trabalho de Conclusão de Curso (Engenharia Eletrônica) – Universidade Federal de Pelotas, Pelotas, 2024.</li>
+        <li>INTERNATIONAL ORGANIZATION FOR STANDARDIZATION. <i>ISO 5690-2:1984 — Equipment for distributing fertilizers — Test methods — Part 2: Fertilizer distributors in lines</i>. Genebra: ISO, 1984.</li>
         <li>LUNDBERG, S. M.; LEE, S.-I. A unified approach to interpreting model predictions. In: <i>Advances in Neural Information Processing Systems 30</i>. 2017. p. 4765–4774.</li>
         </ul></section>`;
 
     function documento(ctx) {
         const { res, estado } = ctx;
-        let n = 2;
+        let n = 3;
         let h = `<header class="rel-cab"><h1>${esc(estado.projeto.titulo || 'Comparação de dosadores')}</h1><p>${esc(estado.projeto.responsavel || '')}${estado.projeto.responsavel ? ' · ' : ''}gerado em ${new Date(res.quando).toLocaleString('pt-BR')}</p></header>`;
-        h += secaoMetodo(ctx);
+        h += secaoDados(ctx);
+        h += secaoMetodologia(ctx);
         for (const b of res.porDosador) h += secaoBloco(b, `Dosador ${b.nome}`, ctx, n++);
         if (res.conjunto) h += secaoBloco(res.conjunto, 'Comparação entre dosadores', ctx, n++);
         return h + REFS;

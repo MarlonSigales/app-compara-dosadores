@@ -16,8 +16,13 @@ Situações: [fazer] [futuro] [resolvido dd/mm/aaaa] [rejeitado]
 10 [resolvido 21/11/2026] Relatório completo: dados e método, conclusões automáticas, gráficos, ANOVA, pressupostos, Tukey, desdobramentos, sigmoide, RF + SHAP, apêndice com médias, referências; imprimir/PDF e baixar HTML; parcelas em CSV.
 11 [resolvido 21/11/2026] Testes: 36 do núcleo (node) e 31 de interface (Playwright, 360 a 1920 px, nome com 4 partes).
 
+12 [resolvido 21/11/2026] Símbolos e identidade visual do Apoio à Escrita de Patentes: logos Inova Agro/EMBRAPII, NIMEq e InstAgri, ícone, css/style.css (topo, menu lateral, cartões, rodapé) e créditos "Equipe Inova Agro - UFPel - EMBRAPII".
+17 [resolvido 21/11/2026] Referência agronômica obrigatória nos dois casos: sementes por população (sementes/ha) e espaçamento entre linhas, sementes por metro ou Xref; adubo por dose (kg/ha), espaçamento entre linhas e intervalo de coleta. A análise só roda com ela preenchida.
+18 [resolvido 21/11/2026] Adubo em massa por intervalo de coleta pela ISO 5690-2: vazão (g/s), CV entre coletas (uniformidade), amplitude relativa (Dmáx − Dmín)/D, desvio e erro absoluto em relação à dose regulada (exatidão) e dose aplicada (kg/ha).
+19 [resolvido 21/11/2026] Relatório: dados primeiro (dosadores, fatores e níveis, parcelas), depois a metodologia completa passo a passo com os valores usados, depois os resultados.
+20 [rejeitado 21/11/2026] Preencher dados faltantes com 0: um 0 vira espaçamento "múltiplo" (ou massa zero) e muda os resultados em vez de neutralizar. Células vazias continuam ignoradas e o balanceamento é feito pelas primeiras repetições.
+
 === O QUE FALTA
-12 [fazer] Copiar os logos (ufpel.png, ceng.png, ea.png, lia.png) de outro app para img/logos (não foi possível daqui).
 13 [fazer] Conferir a impressão em PDF num computador de verdade (quebras de página dos mapas grandes).
 14 [fazer] Incluir o app na Central de Aplicativos.
 15 [futuro] Salvar e abrir o projeto na nuvem MEGA da equipe, como nos outros apps.
