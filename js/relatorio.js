@@ -390,20 +390,31 @@ const Relatorio = (() => {
         <li>LUNDBERG, S. M.; LEE, S.-I. A unified approach to interpreting model predictions. In: <i>Advances in Neural Information Processing Systems 30</i>. 2017. p. 4765–4774.</li>
         </ul></section>`;
 
+    /** Endereço do app, coautores na geração dos dados e pedido de citação (sempre no relatório). */
+    const LINK_APP = 'https://marlonsigales.github.io/app-compara-dosadores/index.html';
+    const COAUTORES = ['Marlon Soares Sigales', 'Ângelo Vieira dos Reis', 'Rafael dos Santos Esteche', 'Jean Carlos Scheunemann', 'Henrique Gonçalves Andrade'];
+    const CITACAO = 'SIGALES, Marlon Soares; REIS, Ângelo Vieira dos; ESTECHE, Rafael dos Santos; SCHEUNEMANN, Jean Carlos; ANDRADE, Henrique Gonçalves. <i>Comparador de Dosadores</i>: análise de ensaios de dosadores de sementes e adubo por ANOVA e Random Forest + SHAP. Pelotas: Laboratório de Instrumentação Agrícola, Universidade Federal de Pelotas, 2026. Aplicativo web. Disponível em: ' + LINK_APP + '.';
+    function blocoCreditos() {
+        const hoje = new Date().toLocaleDateString('pt-BR', { day: 'numeric', month: 'short', year: 'numeric' }).replace(/ de /g, ' ');
+        return `<div class="creditos"><p><b>Ferramenta:</b> Comparador de Dosadores — <a href="${LINK_APP}">${LINK_APP}</a></p>
+        <p><b>Coautores na geração dos dados:</b> ${COAUTORES.map(esc).join(', ')}.</p>
+        <p><b>Como citar:</b> ao usar resultados gerados por esta ferramenta, cite-a como: ${CITACAO} Acesso em: ${esc(hoje)}.</p></div>`;
+    }
+
     function documento(ctx) {
         const { res, estado } = ctx;
         let n = 3;
-        let h = `<header class="rel-cab"><h1>${esc(estado.projeto.titulo || 'Comparação de dosadores')}</h1><p>${esc(estado.projeto.responsavel || '')}${estado.projeto.responsavel ? ' · ' : ''}gerado em ${new Date(res.quando).toLocaleString('pt-BR')}</p></header>`;
+        let h = `<header class="rel-cab"><h1>${esc(estado.projeto.titulo || 'Comparação de dosadores')}</h1><p>${esc(estado.projeto.responsavel || '')}${estado.projeto.responsavel ? ' · ' : ''}gerado em ${new Date(res.quando).toLocaleString('pt-BR')}</p>${blocoCreditos()}</header>`;
         h += secaoDados(ctx);
         h += secaoMetodologia(ctx);
         for (const b of res.porDosador) h += secaoBloco(b, `Dosador ${b.nome}`, ctx, n++);
         if (res.conjunto) h += secaoBloco(res.conjunto, 'Comparação entre dosadores', ctx, n++);
-        return h + REFS;
+        return h + REFS + `<section class="bloco"><h2>Como citar esta ferramenta</h2>${blocoCreditos()}</section>`;
     }
 
     /** HTML autônomo (para baixar). */
     function htmlAutonomo(ctx, css) {
-        return `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${esc(ctx.estado.projeto.titulo || 'Relatório — Comparador de Dosadores')}</title><style>${css}</style></head><body class="relatorio-solo"><main class="relatorio">${documento(ctx)}<footer class="rel-rodape">Comparador de Dosadores — Marlon Soares Sigales · Laboratório de Instrumentação Agrícola · Engenharia Agrícola · CEng/UFPel</footer></main></body></html>`;
+        return `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${esc(ctx.estado.projeto.titulo || 'Relatório — Comparador de Dosadores')}</title><style>${css}</style></head><body class="relatorio-solo"><main class="relatorio">${documento(ctx)}<footer class="rel-rodape">Comparador de Dosadores — ${LINK_APP} · Coautores na geração dos dados: ${COAUTORES.map(esc).join(', ')} · Laboratório de Instrumentação Agrícola · UFPel</footer></main></body></html>`;
     }
 
     return { documento, htmlAutonomo, secaoBloco, tabelaAnova, pressupostos, tabelaTukey, tabelaDesdobramento, tabelaRF, mapaResposta, mapaRF, mapaDiferenca, mapaErro, mapasErro, mapasShap, curvasVelocidade, barrasComparativo, conclusoes, respNome };

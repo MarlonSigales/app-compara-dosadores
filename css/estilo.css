@@ -108,3 +108,6 @@ body.relatorio-solo .relatorio { border: 0; max-width: 1000px; margin: 0 auto; }
 .ref-agro { margin-top: 0.8rem; padding: 0.6rem 0.8rem; background: var(--verde-claro); border: 1px solid #cfe5dd; border-radius: 8px; }
 .ref-agro .campos { margin-top: 0.4rem; }
 .metodo li { margin: 0.45rem 0; }
+.creditos { background: var(--verde-claro); border: 1px solid #cfe5dd; border-radius: 8px; padding: 0.6rem 0.9rem; margin: 0.6rem 0; font-size: 0.9rem; }
+.creditos p { margin: 0.25rem 0; }
+.creditos a { overflow-wrap: anywhere; }

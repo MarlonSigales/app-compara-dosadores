@@ -22,6 +22,8 @@ Situações: [fazer] [futuro] [resolvido dd/mm/aaaa] [rejeitado]
 19 [resolvido 21/11/2026] Relatório: dados primeiro (dosadores, fatores e níveis, parcelas), depois a metodologia completa passo a passo com os valores usados, depois os resultados.
 20 [rejeitado 21/11/2026] Preencher dados faltantes com 0: um 0 vira espaçamento "múltiplo" (ou massa zero) e muda os resultados em vez de neutralizar. Células vazias continuam ignoradas e o balanceamento é feito pelas primeiras repetições.
 21 [resolvido 21/11/2026] Erros do RF + SHAP em escala de cores (aba RF + SHAP, Gráficos e relatório): erro fora da amostra com sinal, erro absoluto e erro do modelo completo que o SHAP explica ((base + Σφ) − observado), na mesma escala; tabela com raiz do erro quadrático médio e erro médio do modelo SHAP.
+22 [resolvido 21/11/2026] Relatório sempre com o link do app, os coautores na geração dos dados (Marlon Soares Sigales, Ângelo Vieira dos Reis, Rafael dos Santos Esteche, Jean Carlos Scheunemann, Henrique Gonçalves Andrade) e o pedido de citação da ferramenta (no início, no fim e no rodapé do HTML baixado).
+23 [futuro] Curva do processo ("função de transferência" estática) de cada dosador: superfície contínua com incerteza e, para dados de campo/observacionais, double/debiased ML (aguarda decisão).
 
 === O QUE FALTA
 13 [fazer] Conferir a impressão em PDF num computador de verdade (quebras de página dos mapas grandes).
