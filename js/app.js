@@ -339,6 +339,7 @@ const App = (() => {
         const R = Relatorio;
         let h = `<p class="intro">Mesma resposta da ANOVA, por parcela; validação deixando tratamentos inteiros de fora; importância por permutação; SHAP exato com interações.</p>${R.tabelaRF(b.rf)}`;
         h += `<figure>${R.barrasComparativo(b.comp, blocos()[abaAtual.rf].titulo)}<figcaption>ANOVA × SHAP: parcela de cada efeito no total explicado.</figcaption></figure>`;
+        h += `<h2>Erros em escala de cores</h2>${R.mapasErro(b.rf, b.fatores, ctx())}`;
         $('#rf-corpo').innerHTML = h;
     }
     function renderCores() {
@@ -370,7 +371,7 @@ const App = (() => {
         if (cv) h += `<figure>${cv}<figcaption>${esc(rot)} × velocidade.</figcaption></figure>`;
         h += `<figure>${R.mapaResposta(b, c.escala, res.resposta, rot + ' — média ANOVA', res.resposta === 'A', c.limite, c.escalaDiv)}<figcaption>Médias de tratamento${res.resposta === 'A' ? `; ponto = IC95% abaixo de ${f1(c.limite, 0)}%` : ''}.</figcaption></figure>`;
         h += `<figure>${R.mapaRF(b.rf, b.fatores, c.escala, res.resposta, rot + ' — previsão RF', c.escalaDiv)}<figcaption>Previsão do RF fora da amostra.</figcaption></figure>`;
-        h += `<figure>${R.mapaDiferenca(b.rf, b.fatores, c.escalaDiv)}<figcaption>RF − ANOVA.</figcaption></figure>`;
+        h += `<h2>Erros do RF + SHAP</h2>${R.mapasErro(b.rf, b.fatores, c)}`;
         for (const m of R.mapasShap(b.rf, b.fatores, c.escalaDiv)) h += `<figure>${m.svg}<figcaption>SHAP de ${esc(Analise.nomeFator(m.fator).toLowerCase())}.</figcaption></figure>`;
         $('#graficos-corpo').innerHTML = h;
     }

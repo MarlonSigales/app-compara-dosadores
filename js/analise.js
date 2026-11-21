@@ -102,6 +102,8 @@ const Analise = (() => {
         const trat = [...tratMap.values()].map((o) => ({ ...o, media: o.soma / o.n, predCV: o.somaPred / o.n }));
         await pausa();
         const sh = F.shap(modelo, cod, trat, fatores);
+        // erros por tratamento: fora da amostra (validação agrupada) e do modelo completo que o SHAP explica (base + Σφ)
+        trat.forEach((t, i) => { t.predSHAP = sh[i].previsao; t.erroCV = t.predCV - t.media; t.erroSHAP = t.predSHAP - t.media; });
         const M = cod.jogadores.length;
         const absPhi = cod.jogadores.map((_, i) => E.media(sh.map((o) => Math.abs(o.phi[i]))));
         const absMain = cod.jogadores.map((_, i) => E.media(sh.map((o) => Math.abs(o.inter[i][i]))));
@@ -111,7 +113,10 @@ const Analise = (() => {
         return {
             fatores, jogadores: cod.jogadores.map((j) => j.fator), r2cv: F.r2(yv, pred), r2treino: F.r2(yv, cod.X.map(modelo.prever)),
             importancia: imp, absPhi, absMain, pares, shap: sh, trat, base: sh[0]?.base,
-            maeCelula: E.media(erroCel), maxErroCelula: Math.max(...erroCel)
+            maeCelula: E.media(erroCel), maxErroCelula: Math.max(...erroCel),
+            rmseCelula: Math.sqrt(E.media(trat.map((t) => t.erroCV ** 2))),
+            maeSHAP: E.media(trat.map((t) => Math.abs(t.erroSHAP))), maxErroSHAP: Math.max(...trat.map((t) => Math.abs(t.erroSHAP))),
+            rmseSHAP: Math.sqrt(E.media(trat.map((t) => t.erroSHAP ** 2)))
         };
     }
 

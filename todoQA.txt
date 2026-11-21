@@ -21,6 +21,7 @@ Situações: [fazer] [futuro] [resolvido dd/mm/aaaa] [rejeitado]
 18 [resolvido 21/11/2026] Adubo em massa por intervalo de coleta pela ISO 5690-2: vazão (g/s), CV entre coletas (uniformidade), amplitude relativa (Dmáx − Dmín)/D, desvio e erro absoluto em relação à dose regulada (exatidão) e dose aplicada (kg/ha).
 19 [resolvido 21/11/2026] Relatório: dados primeiro (dosadores, fatores e níveis, parcelas), depois a metodologia completa passo a passo com os valores usados, depois os resultados.
 20 [rejeitado 21/11/2026] Preencher dados faltantes com 0: um 0 vira espaçamento "múltiplo" (ou massa zero) e muda os resultados em vez de neutralizar. Células vazias continuam ignoradas e o balanceamento é feito pelas primeiras repetições.
+21 [resolvido 21/11/2026] Erros do RF + SHAP em escala de cores (aba RF + SHAP, Gráficos e relatório): erro fora da amostra com sinal, erro absoluto e erro do modelo completo que o SHAP explica ((base + Σφ) − observado), na mesma escala; tabela com raiz do erro quadrático médio e erro médio do modelo SHAP.
 
 === O QUE FALTA
 13 [fazer] Conferir a impressão em PDF num computador de verdade (quebras de página dos mapas grandes).

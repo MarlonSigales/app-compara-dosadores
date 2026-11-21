@@ -181,14 +181,15 @@ const Graficos = (() => {
         const nItens = Math.max(...grupos.map((g) => g.itens.length));
         const nSer = Math.max(...grupos.map((g) => g.series.length));
         const bh = 8, gap = 6, ph = 40 + nItens * (nSer * bh + gap) + 30, pw = 260;
-        const W = ncol * pw + 10, H = nl * ph + 30;
+        const nomes0 = grupos[0].series.map((x) => x.nome);
+        const leg = nomes0.length * 15 + 6;
+        const W = ncol * pw + 10, H = nl * ph + 30 + leg;
         const vmax = cfg.max ?? Math.max(...grupos.flatMap((g) => g.series.flatMap((s) => s.valores))) * 1.08;
         let s = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="100%" style="max-width:${W * 1.25}px" font-family="Carlito, Calibri, 'Segoe UI', Arial, sans-serif" role="img" aria-label="${esc(cfg.titulo || 'Barras')}">`;
-        const nomes = grupos[0].series.map((x) => x.nome);
-        let lx = 90;
-        nomes.forEach((n, i) => { s += `<rect x="${lx}" y="6" width="12" height="9" rx="2" fill="${SERIES[i % 8]}"/><text x="${lx + 16}" y="14.5" font-size="10.5" fill="${TINTA}">${esc(n)}</text>`; lx += 30 + n.length * 5.4; });
+        // legenda empilhada (uma série por linha), para não ser cortada em figuras estreitas
+        nomes0.forEach((n, i) => { s += `<rect x="12" y="${6 + i * 15}" width="12" height="9" rx="2" fill="${SERIES[i % 8]}"/><text x="28" y="${14.5 + i * 15}" font-size="10.5" fill="${TINTA}">${esc(n)}</text>`; });
         grupos.forEach((g, k) => {
-            const ox = (k % ncol) * pw + 78, oy = Math.floor(k / ncol) * ph + 46;
+            const ox = (k % ncol) * pw + 78, oy = Math.floor(k / ncol) * ph + 46 + leg;
             const w = pw - 100;
             s += `<text x="${ox + w / 2}" y="${oy - 10}" text-anchor="middle" font-size="11" font-weight="600" fill="${TINTA}">${esc(g.titulo)}</text>`;
             g.itens.forEach((it, i) => {

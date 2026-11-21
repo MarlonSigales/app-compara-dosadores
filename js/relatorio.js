@@ -131,13 +131,35 @@ const Relatorio = (() => {
         return G.mapas(ps, { cor: e.cor, paradas: e.paradas, esticada: e.esticada ?? cfgEsc.esticada, rotuloBarra: rotCurto(resposta), eixoX, colunas: Math.min(3, ps.length), formatoBarra: (v) => f1(v, Math.abs(v) < 10 && v % 1 ? 1 : 0) });
     }
 
-    function mapaDiferenca(rf, fatores, cfgDiv) {
-        const cel = rf.trat.map((t) => ({ niveis: fatores.map((f) => t[f]), v: t.predCV - t.media }));
-        const lim = Math.min(Math.max(5, Math.ceil(Math.max(...cel.map((c) => Math.abs(c.v))) / 5) * 5), 20);
+    /**
+     * Mapas de erro do RF+SHAP em escala de cores, por tratamento:
+     * - 'cv': previsão fora da amostra (validação agrupada) − média observada (com sinal, escala divergente);
+     * - 'abs': |previsão fora da amostra − média observada| (escala da resposta invertida: menor é melhor);
+     * - 'shap': (base + Σφ) − média observada, o erro do modelo completo que os valores SHAP decompõem.
+     */
+    function mapaErro(rf, fatores, tipo, cfgDiv, cfgEsc) {
+        const campo = { cv: 'erroCV', abs: 'erroCV', shap: 'erroSHAP' }[tipo];
+        const cel = rf.trat.map((t) => ({ niveis: fatores.map((f) => t[f]), v: tipo === 'abs' ? Math.abs(t[campo]) : t[campo], t }));
+        const maxAbs = Math.max(...rf.trat.flatMap((t) => [Math.abs(t.erroCV), Math.abs(t.erroSHAP)]));
+        const lim = Math.min(Math.max(2, Math.ceil(maxAbs / 2) * 2), 20);
+        const dica = (c) => `observado ${f1(c.t.media, 1)} · previsto fora da amostra ${f1(c.t.predCV, 1)} (erro ${f1(c.t.erroCV, 1)}) · modelo SHAP ${f1(c.t.predSHAP, 1)} (erro ${f1(c.t.erroSHAP, 1)})`;
+        const { ps, eixoX } = paineis(cel, fatores, (c) => c.v, null, dica);
+        if (tipo === 'abs') {
+            const p = [...cfgEsc.paradas].sort((a, b) => a[0] - b[0]);
+            const v0 = p[0][0], v1 = p[p.length - 1][0];
+            const paradas = p.map(([v, c]) => [lim * (v1 - v) / (v1 - v0), c]).sort((a, b) => a[0] - b[0]);
+            return G.mapas(ps, { cor: G.escala(paradas), paradas, esticada: true, rotuloBarra: '|erro| (p.p.)', eixoX, colunas: Math.min(3, ps.length), formatoBarra: (v) => f1(v, v < 10 && v % 1 ? 1 : 0) });
+        }
         const paradas = cfgDiv.paradas.map(([v, c]) => [v * lim, c]);
-        const { ps, eixoX } = paineis(cel, fatores, (c) => c.v, null, (c) => `RF − ANOVA: ${f1(c.v, 1)} p.p.`);
-        return G.mapas(ps, { cor: G.escala(paradas), paradas, esticada: false, rotuloBarra: 'RF − ANOVA (p.p.)', eixoX, colunas: Math.min(3, ps.length), formatoBarra: (v) => f1(v, 0) });
+        return G.mapas(ps, { cor: G.escala(paradas), paradas, esticada: false, rotuloBarra: tipo === 'shap' ? 'Erro do modelo SHAP (p.p.)' : 'Erro fora da amostra (p.p.)', eixoX, colunas: Math.min(3, ps.length), formatoBarra: (v) => f1(v, 0) });
     }
+    /** Os três mapas de erro com legendas, para as abas e o relatório. */
+    function mapasErro(rf, fatores, ctx) {
+        return `<figure>${mapaErro(rf, fatores, 'cv', ctx.escalaDiv, ctx.escala)}<figcaption>Erro fora da amostra: previsão do RF para o tratamento deixado de fora do treino menos a média observada (p.p.). Lado positivo da escala: RF acima do observado; lado negativo: abaixo. Erros grandes nas bordas indicam que o RF não extrapola.</figcaption></figure>
+        <figure>${mapaErro(rf, fatores, 'abs', ctx.escalaDiv, ctx.escala)}<figcaption>Erro absoluto fora da amostra (p.p.), com as cores da escala de resposta invertidas: a cor de melhor desempenho indica erro perto de zero.</figcaption></figure>
+        <figure>${mapaErro(rf, fatores, 'shap', ctx.escalaDiv, ctx.escala)}<figcaption>Erro do modelo completo que os valores SHAP explicam: (base + soma dos SHAP) − média observada (p.p.). Mostra onde a explicação do SHAP parte de uma previsão imprecisa. A escala é a mesma do erro fora da amostra.</figcaption></figure>`;
+    }
+    const mapaDiferenca = (rf, fatores, cfgDiv) => mapaErro(rf, fatores, 'cv', cfgDiv, null);
 
     function mapasShap(rf, fatores, cfgDiv) {
         const lim0 = Math.max(...rf.shap.flatMap((o) => o.phi.map(Math.abs)));
@@ -198,7 +220,9 @@ const Relatorio = (() => {
         <tr><td>R² no treino</td><td>${f1(rf.r2treino, 3)}</td></tr>
         <tr><td>R² na validação agrupada por tratamento</td><td>${f1(rf.r2cv, 3)}</td></tr>
         <tr><td>Erro médio por tratamento (previsto fora da amostra × média observada)</td><td>${f1(rf.maeCelula, 2)} p.p.</td></tr>
-        <tr><td>Maior erro por tratamento</td><td>${f1(rf.maxErroCelula, 2)} p.p.</td></tr>
+        <tr><td>Maior erro por tratamento (fora da amostra)</td><td>${f1(rf.maxErroCelula, 2)} p.p.</td></tr>
+        <tr><td>Raiz do erro quadrático médio por tratamento (fora da amostra)</td><td>${f1(rf.rmseCelula, 2)} p.p.</td></tr>
+        <tr><td>Erro médio do modelo explicado pelo SHAP (base + Σφ × média observada)</td><td>${f1(rf.maeSHAP, 2)} p.p. (máximo ${f1(rf.maxErroSHAP, 2)})</td></tr>
         <tr><td>Valor de base do SHAP (média do modelo)</td><td>${f1(rf.base, 2)}</td></tr></tbody></table>`;
         h += `<table class="tab num"><thead><tr><th>Fator</th><th>Importância por permutação (queda de R²)</th><th>Parcela</th><th>|SHAP| médio</th><th>|SHAP| efeito principal</th></tr></thead><tbody>`;
         rf.importancia.forEach((o, i) => { h += `<tr><td>${esc(A.nomeFator(o.fator))}</td><td>${f1(o.valor, 3)}</td><td>${f1(100 * Math.max(o.valor, 0) / tot, 1)}%</td><td>${f1(rf.absPhi[i], 2)}</td><td>${f1(rf.absMain[i], 2)}</td></tr>`; });
@@ -280,7 +304,7 @@ const Relatorio = (() => {
         h += tabelaRF(bloco.rf);
         h += `<figure>${barrasComparativo(bloco.comp, titulo)}<figcaption>Parcela de cada efeito no total explicado: ANOVA × SHAP (efeitos principais e pares).</figcaption></figure>`;
         h += `<figure>${mapaRF(bloco.rf, bloco.fatores, ctx.escala, res.resposta, rotOrig + ' — previsão RF', ctx.escalaDiv)}<figcaption>Previsão do RF para tratamentos deixados de fora do treino.</figcaption></figure>`;
-        h += `<figure>${mapaDiferenca(bloco.rf, bloco.fatores, ctx.escalaDiv)}<figcaption>Diferença entre a previsão do RF e a média observada (p.p.). Erros grandes nas bordas indicam que o RF não extrapola.</figcaption></figure>`;
+        h += `<h4>Erros do RF + SHAP em escala de cores</h4>${mapasErro(bloco.rf, bloco.fatores, ctx)}`;
         for (const m of mapasShap(bloco.rf, bloco.fatores, ctx.escalaDiv)) h += `<figure>${m.svg}<figcaption>Contribuição SHAP de ${esc(A.nomeFator(m.fator).toLowerCase())} em cada tratamento, em relação à média do modelo (${f1(bloco.rf.base, 1)}).</figcaption></figure>`;
         h += `<details class="apendice"><summary>Médias de todas as respostas por tratamento</summary>${tabelaDescritiva(bloco.desc, unidade)}</details>`;
         return h + '</section>';
@@ -348,7 +372,7 @@ const Relatorio = (() => {
         passos.push(`<b>Intervalo de confiança de cada tratamento.</b> IC${f1((1 - a.alfa) * 100, 0)}% = média ± t<sub>${f1(1 - a.alfa / 2, 3)}; GL erro</sub> · √(QM<sub>erro</sub> / n). ${massa ? '' : `Nos mapas da ANOVA, o ponto marca os tratamentos cujo intervalo inteiro fica abaixo de ${f1(ctx.limite, 0)}%.`}`);
         passos.push(`<b>Ajuste sigmoidal.</b> Em cada combinação dos demais fatores com pelo menos 4 velocidades, a média da resposta foi ajustada a f(V) = a / (1 + e<sup>−(V − x₀)/b</sup>) por mínimos quadrados não lineares (Levenberg-Marquardt), com R² = 1 − SQ<sub>resíduo</sub> / SQ<sub>total</sub>, como em Andrade.`);
         passos.push(`<b>Random Forest (proposta de correção do RF+SHAP).</b> A mesma resposta por parcela da ANOVA (sem transformação) foi modelada por ${a.arvores} árvores de regressão, cada uma treinada numa amostra bootstrap, com divisões que minimizam a soma de quadrados, no mínimo 2 parcelas por folha e todos os fatores avaliados em cada divisão; a previsão é a média das árvores (semente aleatória fixa, para reprodutibilidade). Codificação: condução numa única coluna 0/1 (sem a coluna redundante), ângulos e velocidade como números e dosador em colunas indicadoras agrupadas.`);
-        passos.push(`<b>Validação do Random Forest.</b> Validação cruzada agrupada por tratamento em ${a.folds} grupos: as repetições de um mesmo tratamento ficam sempre no mesmo grupo, de modo que cada tratamento é previsto por um modelo que não viu nenhuma de suas repetições (${Math.max(50, Math.round(a.arvores / 2))} árvores em cada modelo da validação). São informados o R² no treino, o R² na validação e o erro por tratamento (previsão média × média observada).`);
+        passos.push(`<b>Validação do Random Forest.</b> Validação cruzada agrupada por tratamento em ${a.folds} grupos: as repetições de um mesmo tratamento ficam sempre no mesmo grupo, de modo que cada tratamento é previsto por um modelo que não viu nenhuma de suas repetições (${Math.max(50, Math.round(a.arvores / 2))} árvores em cada modelo da validação). São informados o R² no treino, o R² na validação e, por tratamento, o erro fora da amostra (previsão média − média observada), seu valor absoluto e a raiz do erro quadrático médio. Esses erros, e o erro do modelo completo que o SHAP explica ((base + Σφ) − média observada), são apresentados em mapas de cores com a mesma escala divergente, para mostrar onde o RF erra e onde a explicação do SHAP parte de previsões imprecisas.`);
         passos.push(`<b>Importância por permutação.</b> No modelo completo, as colunas de cada fator foram embaralhadas juntas (5 repetições) e a importância é a queda média do R². Esse método não favorece fatores com muitos níveis, ao contrário da importância por impureza.`);
         passos.push(`<b>SHAP exato com interações.</b> Para cada tratamento x, o valor de uma coalizão S de fatores é v(S) = média, sobre todos os tratamentos observados (fundo), da previsão com os fatores de S fixados nos níveis de x. O valor SHAP do fator i é φ<sub>i</sub> = Σ<sub>S</sub> |S|!(M − |S| − 1)!/M! · [v(S ∪ {i}) − v(S)], com M fatores, e as interações de pares seguem o índice de interação de Shapley (convenção do pacote shap, metade para cada fator do par). A soma dos φ com o valor de base (média do modelo) reproduz a previsão. Para comparar com a ANOVA, calcula-se a parcela de cada efeito principal e de cada par no total: SQ do termo na ANOVA e |valor SHAP| médio no RF.`);
         if (res.conjunto) passos.push(`<b>Comparação entre dosadores.</b> O dosador entra como mais um fator, em nova ANOVA e novo RF+SHAP, usando apenas os tratamentos presentes em todos os dosadores${res.conjunto.excluidos ? ` (${res.conjunto.excluidos} parcelas ficaram de fora)` : ''}.`);
@@ -382,7 +406,7 @@ const Relatorio = (() => {
         return `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${esc(ctx.estado.projeto.titulo || 'Relatório — Comparador de Dosadores')}</title><style>${css}</style></head><body class="relatorio-solo"><main class="relatorio">${documento(ctx)}<footer class="rel-rodape">Comparador de Dosadores — Marlon Soares Sigales · Laboratório de Instrumentação Agrícola · Engenharia Agrícola · CEng/UFPel</footer></main></body></html>`;
     }
 
-    return { documento, htmlAutonomo, secaoBloco, tabelaAnova, pressupostos, tabelaTukey, tabelaDesdobramento, tabelaRF, mapaResposta, mapaRF, mapaDiferenca, mapasShap, curvasVelocidade, barrasComparativo, conclusoes, respNome };
+    return { documento, htmlAutonomo, secaoBloco, tabelaAnova, pressupostos, tabelaTukey, tabelaDesdobramento, tabelaRF, mapaResposta, mapaRF, mapaDiferenca, mapaErro, mapasErro, mapasShap, curvasVelocidade, barrasComparativo, conclusoes, respNome };
 })();
 
 if (typeof module !== 'undefined') module.exports = Relatorio;

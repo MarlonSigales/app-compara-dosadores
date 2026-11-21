@@ -39,6 +39,11 @@ async def main():
             await pg.goto(URL + '#' + aba); await pg.wait_for_timeout(400)
         t('relatório tem referências', await pg.locator('#relatorio-corpo >> text=Referências').count() >= 1)
         t('relatório tem mapas SVG', await pg.locator('#relatorio-corpo svg').count() > 10)
+        t('relatório mostra os erros do RF + SHAP em cores', await pg.locator('#relatorio-corpo >> text=Erro do modelo completo que os valores SHAP explicam').count() >= 1)
+        await pg.goto(URL + '#rf'); await pg.wait_for_timeout(400)
+        t('aba RF + SHAP mostra 3 mapas de erro', await pg.locator('#rf-corpo figure svg').count() >= 4)
+        await pg.screenshot(path='/tmp/ui_rf.png', full_page=True)
+        await pg.goto(URL + '#relatorio'); await pg.wait_for_timeout(400)
         async with pg.expect_download() as d:
             await pg.click('[data-acao=baixar-html]')
         t('baixa HTML', (await d.value).suggested_filename.endswith('.html'))
