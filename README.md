@@ -42,7 +42,7 @@ python3 tests/testes_ui.py tests/exemplo_quatro_partes.zip tests/exemplo_adubo.z
 ```
 
 ## Autoria e citação
-Desenvolvedor: Marlon Soares Sigales. Coautores do projeto: Roger Toscan Spagnolo, Eduardo Walker, Fabrício Ardais Medeiros. Coautores na geração dos dados: Marlon Soares Sigales, Ângelo Vieira dos Reis, Rafael dos Santos Esteche, Jean Carlos Scheunemann, Henrique Gonçalves Andrade.
+Desenvolvedor: Marlon Soares Sigales. Coautores do projeto: Ângelo Vieira dos Reis, Rafael dos Santos Esteche, Jean Carlos Scheunemann, Henrique Gonçalves Andrade, Roger Toscan Spagnolo, Eduardo Walker, Fabrício Ardais Medeiros. Coautores na geração dos dados: Marlon Soares Sigales, Ângelo Vieira dos Reis, Rafael dos Santos Esteche, Jean Carlos Scheunemann, Henrique Gonçalves Andrade.
 
 Como citar: SIGALES, Marlon Soares; SPAGNOLO, Roger Toscan; WALKER, Eduardo; MEDEIROS, Fabrício Ardais; REIS, Ângelo Vieira dos; ESTECHE, Rafael dos Santos; SCHEUNEMANN, Jean Carlos; ANDRADE, Henrique Gonçalves. *Comparador de Dosadores*: análise de ensaios de dosadores de sementes e adubo por ANOVA e Random Forest + SHAP. Pelotas: Laboratório de Instrumentação Agrícola, Universidade Federal de Pelotas, 2026. Aplicativo web. Disponível em: https://marlonsigales.github.io/app-compara-dosadores/index.html.
 

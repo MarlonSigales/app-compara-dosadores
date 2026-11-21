@@ -27,6 +27,7 @@ Situações: [fazer] [futuro] [resolvido dd/mm/aaaa] [rejeitado]
 24 [resolvido 21/11/2026] Coautores do projeto: Roger Toscan Spagnolo, Eduardo Walker e Fabrício Ardais Medeiros (rodapé do app, relatório e citação). Relatório pede inclusão como anexo nos trabalhos.
 25 [resolvido 21/11/2026] Relatório completo: regras gerais da ferramenta (antes só na página Início), metodologia de todas as análises, médias por tratamento e todas as parcelas de cada dosador.
 26 [fazer] Conferir o nome completo de Eduardo Walker e de Jean Carlos Scheunemann no Lattes.
+27 [resolvido 21/11/2026] Todos são coautores do projeto: Ângelo Vieira dos Reis, Rafael dos Santos Esteche, Jean Carlos Scheunemann, Henrique Gonçalves Andrade, Roger Toscan Spagnolo, Eduardo Walker e Fabrício Ardais Medeiros (rodapé do app, relatório e README); a lista de coautores na geração dos dados continua no relatório.
 
 === O QUE FALTA
 13 [fazer] Conferir a impressão em PDF num computador de verdade (quebras de página dos mapas grandes).
