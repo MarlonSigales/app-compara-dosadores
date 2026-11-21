@@ -8,8 +8,8 @@
     <title>Comparador de Dosadores</title>
     <link rel="icon" type="image/png" href="img/icone-instagri.png">
     <link rel="apple-touch-icon" href="img/icone-instagri-180.png">
-    <link rel="stylesheet" href="css/style.css?v=20261121d">
-    <link rel="stylesheet" href="css/estilo.css?v=20261121d">
+    <link rel="stylesheet" href="css/style.css?v=20261121f">
+    <link rel="stylesheet" href="css/estilo.css?v=20261121f">
 </head>
 <body>
 <header class="topbar">
@@ -34,8 +34,9 @@
             <span class="sidebar-grupo">Resultados</span>
             <a class="sidebar-link" href="#anova" data-pag="anova"><span class="sidebar-num">5</span>ANOVA</a>
             <a class="sidebar-link" href="#rf" data-pag="rf"><span class="sidebar-num">6</span>RF + SHAP</a>
-            <a class="sidebar-link" href="#graficos" data-pag="graficos"><span class="sidebar-num">7</span>Gráficos e cores</a>
-            <a class="sidebar-link" href="#relatorio" data-pag="relatorio"><span class="sidebar-num">8</span>Relatório</a>
+            <a class="sidebar-link" href="#curva" data-pag="curva"><span class="sidebar-num">7</span>Curva do processo</a>
+            <a class="sidebar-link" href="#graficos" data-pag="graficos"><span class="sidebar-num">8</span>Gráficos e cores</a>
+            <a class="sidebar-link" href="#relatorio" data-pag="relatorio"><span class="sidebar-num">9</span>Relatório</a>
         </nav>
         <div class="sidebar-arquivo">
             <span class="sidebar-arquivo-rotulo">Arquivo do projeto</span>
@@ -62,7 +63,7 @@
             <li><b>Dosadores e dados:</b> cadastre cada dosador (marca, modelo, sementes ou adubo, tubo condutor, X<sub>ref</sub>) e suba os arquivos CSV ou um ZIP com uma pasta por dosador.</li>
             <li><b>Nome dos arquivos:</b> diga o que é cada parte do nome (ex.: <code>c_-5_08</code> = tubo, ângulo, velocidade). Se houver dois ângulos, o sistema pergunta qual é o lateral e qual é o longitudinal.</li>
             <li><b>Análise:</b> escolha a resposta (padrão: % de espaçamentos aceitáveis), a transformação e os níveis, e rode.</li>
-            <li><b>Resultados:</b> ANOVA, pressupostos, Tukey e desdobramentos; RF + SHAP; mapas de calor.</li>
+            <li><b>Resultados:</b> ANOVA, pressupostos, Tukey e desdobramentos; RF + SHAP com mapas de erro; curva do processo (superfície contínua com incerteza e DML); mapas de calor.</li>
             <li><b>Relatório:</b> imprima ou salve em PDF, ou baixe o HTML.</li>
         </ol>
         <h2>Regras que o sistema segue</h2>
@@ -72,6 +73,8 @@
             <li>A ANOVA usa todos os fatores com mais de um nível e todas as interações. Tukey e desdobramentos usam o QM do erro do modelo completo.</li>
             <li>O Random Forest usa a mesma resposta da ANOVA, valida deixando tratamentos inteiros de fora e mede importância por permutação. O SHAP é exato e mostra as interações.</li>
             <li>Na comparação entre dosadores, entram só os tratamentos presentes em todos eles.</li>
+            <li>A curva do processo de cada dosador é ajustada por processo gaussiano às médias, com o ruído dado pelo QM do erro; o DML confere o efeito de cada fator e deve repetir as médias da ANOVA no ensaio fatorial.</li>
+            <li>O relatório traz os dados, a metodologia passo a passo, todos os resultados, o link do app, os coautores e como citar. Anexe-o aos trabalhos que usarem os resultados.</li>
             <li>Tudo roda no seu navegador; os dados ficam guardados neste computador até você exportar.</li>
         </ul>
     </section>
@@ -109,6 +112,13 @@
         <div id="rf-corpo"></div>
     </section>
 
+    <section class="pagina" id="pag-curva">
+        <h1>Curva do processo</h1>
+        <p class="intro">Característica estática de cada dosador: superfície contínua (processo gaussiano) com incerteza e sensibilidade, e double/debiased machine learning (DML) como conferência e para dados de campo.</p>
+        <div class="abas" id="abas-curva"></div>
+        <div id="curva-corpo"></div>
+    </section>
+
     <section class="pagina" id="pag-graficos">
         <h1>Gráficos e escalas de cor</h1>
         <div id="cores-corpo"></div>
@@ -138,7 +148,8 @@
                     <img src="img/logo-instagri.png" alt="Laboratório de Instrumentação Agrícola - UFPel" height="64">
                 </div>
                 <p>Critérios de espaçamento de Coelho (1996) e análise baseada no trabalho de Henrique Gonçalves Andrade. Ferramenta de apoio: confira os pressupostos antes de concluir.</p>
-                <p class="footer-credits"><strong>Desenvolvedor:</strong> Marlon Soares Sigales · <strong>Equipe Inova Agro - UFPel - EMBRAPII</strong></p>
+                <p class="footer-credits"><strong>Desenvolvedor:</strong> Marlon Soares Sigales · <strong>Coautores do projeto:</strong> Roger Toscan Spagnolo, Eduardo Walker, Fabrício Ardais Medeiros · <strong>Equipe Inova Agro - UFPel - EMBRAPII</strong></p>
+                <p class="footer-credits"><strong>Coautores na geração dos dados:</strong> Marlon Soares Sigales, Ângelo Vieira dos Reis, Rafael dos Santos Esteche, Jean Carlos Scheunemann, Henrique Gonçalves Andrade. Ao usar os resultados, cite a ferramenta e anexe o relatório completo ao trabalho.</p>
                 <p class="footer-credits">© 2026 Marlon Sigales. Todos os direitos reservados: copiar, reproduzir ou alterar o código exige autorização do autor.</p>
             </div>
         </footer>
@@ -147,12 +158,13 @@
 
 <script src="js/vendor/jstat.min.js"></script>
 <script src="js/vendor/jszip.min.js"></script>
-<script src="js/estatistica.js?v=20261121d"></script>
-<script src="js/floresta.js?v=20261121d"></script>
-<script src="js/dados.js?v=20261121d"></script>
-<script src="js/analise.js?v=20261121d"></script>
-<script src="js/graficos.js?v=20261121d"></script>
-<script src="js/relatorio.js?v=20261121d"></script>
-<script src="js/app.js?v=20261121d"></script>
+<script src="js/estatistica.js?v=20261121f"></script>
+<script src="js/floresta.js?v=20261121f"></script>
+<script src="js/dados.js?v=20261121f"></script>
+<script src="js/superficie.js?v=20261121f"></script>
+<script src="js/analise.js?v=20261121f"></script>
+<script src="js/graficos.js?v=20261121f"></script>
+<script src="js/relatorio.js?v=20261121f"></script>
+<script src="js/app.js?v=20261121f"></script>
 </body>
 </html>

@@ -10,6 +10,7 @@ const Analise = (() => {
     const E = (typeof Estat !== 'undefined') ? Estat : require('./estatistica.js');
     const F = (typeof Floresta !== 'undefined') ? Floresta : require('./floresta.js');
     const D = (typeof Dados !== 'undefined') ? Dados : require('./dados.js');
+    const S = (typeof Superficie !== 'undefined') ? Superficie : require('./superficie.js');
 
     const ORDEM = ['dosador', 'cond', 'long', 'lat', 'vel'];
     const NOMES = { dosador: 'Dosador', cond: 'Condução', long: 'Inclinação longitudinal', lat: 'Inclinação lateral', vel: 'Velocidade' };
@@ -120,6 +121,36 @@ const Analise = (() => {
         };
     }
 
+    /**
+     * Curva do processo: superfície contínua (GP) sobre as médias dos tratamentos da resposta original, com o ruído
+     * de cada média dado pelo QM do erro da ANOVA; e DML (modelo parcialmente linear e curva AIPW de cada fator).
+     */
+    async function blocoCurva(rows, fatores, y, an, cfg, pausa) {
+        const niveis = Object.fromEntries(fatores.map((f) => [f, E.niveisDe(rows, f)]));
+        const out = { fatores, niveis };
+        const numericos = fatores.filter((f) => niveis[f].every((v) => typeof v === 'number'));
+        if (cfg.superficie && numericos.length) {
+            const cel = [...an.celulas.values()].map((c) => ({ niveis: c.niveis, media: c.media, n: c.n }));
+            out.gp = S.ajustarGP(cel, an.fatores, Object.fromEntries(an.fatores.map((f) => [f, an.niveis[f]])), an.erro.qm);
+            out.xF = numericos.includes('vel') ? 'vel' : numericos[0];
+            out.linF = ['long', 'lat'].find((f) => numericos.includes(f) && f !== out.xF) || numericos.find((f) => f !== out.xF) || null;
+            await pausa();
+        }
+        if (cfg.dml) {
+            const opc = { folds: cfg.dmlFolds || 5, arvores: cfg.dmlArvores || 60 };
+            out.plr = [];
+            out.curvas = [];
+            for (const f of fatores) {
+                out.plr.push(await S.dmlPLR(rows, fatores, niveis, y, f, opc, pausa));
+                const cur = await S.dmlCurva(rows, fatores, niveis, y, f, opc, pausa);
+                const mm = E.mediasMarginais(rows, [f], y);
+                cur.forEach((c) => { c.anova = mm.find((m) => m.niveis[0] === c.nivel)?.media; });
+                out.curvas.push({ fator: f, pontos: cur, maxDif: Math.max(...cur.map((c) => Math.abs(c.media - c.anova))) });
+            }
+        }
+        return out;
+    }
+
     /** Parcela de cada termo no total (ANOVA: SQ; SHAP: |valor| médio), para efeitos principais e pares. */
     function comparativo(an, rf) {
         const termos = an.tabela.filter((t) => t.fatores.length <= 2);
@@ -160,8 +191,14 @@ const Analise = (() => {
             const sig = sigmoides(rd, fat, a.resposta);
             await progresso(++passo / total, `Random Forest + SHAP — ${nome}`);
             const rf = await blocoRF(rd, bloco.an.fatores, a.resposta, cfg, (t) => progresso((passo - 1 + t) / total, `Random Forest + SHAP — ${nome}`));
+            let curva = null;
+            if (a.superficie !== false || a.dml !== false) {
+                await progresso((passo - 0.2) / total, `Curva do processo (superfície contínua e DML) — ${nome}`);
+                const anOrig = y === a.resposta ? bloco.an : E.anova(rd, bloco.an.fatores, a.resposta);
+                curva = await blocoCurva(rd, bloco.an.fatores, a.resposta, anOrig, { superficie: a.superficie !== false, dml: a.dml !== false }, pausa);
+            }
             const dos = estado.dosadores.find((d) => d.nome === nome);
-            porDosador.push({ nome, dosador: dos, rows: rd, fatores: bloco.an.fatores, ...bloco, desc, sig, rf, comp: comparativo(bloco.an, rf) });
+            porDosador.push({ nome, dosador: dos, rows: rd, fatores: bloco.an.fatores, ...bloco, desc, sig, rf, curva, comp: comparativo(bloco.an, rf) });
         }
         let conjunto = null;
         if (nomesDos.length > 1) {

@@ -243,6 +243,99 @@ const Relatorio = (() => {
         return h + '</tbody></table></div>';
     }
 
+    // ---------- curva do processo (superfície contínua e DML) ----------
+    function htmlCurva(bloco, ctx) {
+        const cv = bloco.curva;
+        if (!cv) return '<p class="nota">A curva do processo não foi calculada (opção desligada na etapa 4).</p>';
+        const { res, estado } = ctx;
+        const resp = res.resposta;
+        const rot = respNome(resp, estado.dosadores[0].unidade);
+        const fs = cv.fatores;
+        const e = escalaPara(ctx.escala, resp, (bloco.icOrig || bloco.ic).map((c) => c.media), ctx.escalaDiv);
+        let h = '';
+        if (cv.gp) {
+            const gp = cv.gp, xF = cv.xF, linF = cv.linF;
+            const ux = (f) => (f === 'vel' ? 'km/h' : (f === 'long' || f === 'lat' ? '°' : ''));
+            h += `<h4>Superfície contínua (processo gaussiano)</h4>
+            <table class="tab num"><thead><tr><th>Métrica</th><th>Valor</th></tr></thead><tbody>
+            <tr><td>Tratamentos usados no ajuste</td><td>${gp.n}</td></tr>
+            <tr><td>R² deixando um tratamento de fora (fórmula exata do GP)</td><td>${f1(gp.r2loo, 3)}</td></tr>
+            <tr><td>Raiz do erro quadrático médio deixando um de fora</td><td>${f1(gp.rmseLoo, 2)}</td></tr>
+            <tr><td>Média de referência e amplitude do sinal (σ<sub>f</sub>)</td><td>${f1(gp.mu, 2)} · ${f1(gp.sf, 2)}</td></tr>
+            ${gp.relevancia.map((r) => { const en = gp.enc.find((q) => q.f === r.fator); return `<tr><td>Comprimento de escala — ${esc(A.nomeFator(r.fator))}</td><td>${en.tipo === 'num' ? `${f1(r.ell * (en.b - en.a), 2)} ${ux(r.fator)}` : f1(r.ell, 2) + ' (0/1)'}</td></tr>`; }).join('')}
+            </tbody></table>
+            <p class="nota">O comprimento de escala é a distância em que a resposta muda de forma apreciável: curto indica resposta que varia depressa (curvas, picos); longo, resposta suave. Ele mede forma, não tamanho do efeito; o tamanho está na ANOVA e no SHAP.</p>`;
+            // curvas y × xF com faixa de 95%, painéis pelos níveis observados do fator de linha
+            const lvLin = linF ? cv.niveis[linF] : [null];
+            const outros = fs.filter((f) => f !== xF && f !== linF);
+            const combos = outros.reduce((acc, f) => acc.flatMap((c) => cv.niveis[f].map((v) => ({ ...c, [f]: v }))), [{}]);
+            const lvX = cv.niveis[xF];
+            const xs = []; for (let v = Math.min(...lvX); v <= Math.max(...lvX) + 1e-9; v += xF === 'vel' ? 0.25 : 1) xs.push(+v.toFixed(3));
+            const obs = new Map((bloco.icOrig || bloco.ic).map((c) => [c.niveis.map(String).join('|'), c.media]));
+            const ordem = bloco.fatores;
+            const paineis = lvLin.map((l) => ({
+                titulo: linF ? `${A.nomeCurto(linF)} ${A.rotNivel(linF, l)}` : 'Curva do processo',
+                series: combos.flatMap((c) => {
+                    const nome = outros.map((f) => A.rotNivel(f, c[f])).join(' · ') || 'modelo';
+                    const val = (x) => ordem.map((f) => (f === xF ? x : (f === linF ? l : c[f])));
+                    const pr = xs.map((x) => [x, gp.prever(val(x), true)]);
+                    const pts = lvX.map((x) => [x, obs.get(val(x).map(String).join('|'))]).filter((q) => Number.isFinite(q[1]));
+                    return [{ nome, pts: pr.map(([x, p]) => [x, p.m]), banda: pr.map(([x, p]) => [x, p.m - 1.96 * p.sd, p.m + 1.96 * p.sd]), semPontos: true },
+                        { nome, pts, semLinha: true, semLegenda: true }];
+                })
+            }));
+            h += `<figure>${G.curvas(paineis, { eixoX: A.nomeFator(xF) + (ux(xF) ? ` (${ux(xF)})` : ''), eixoY: rotCurto(resp), limite: resp === 'A' ? ctx.limite : null, colunas: 3 })}<figcaption>Curva do processo (característica estática): linha = superfície contínua do GP; faixa = intervalo de 95% da média; pontos = médias observadas dos tratamentos.</figcaption></figure>`;
+            // mapas na grade fina
+            const passoX = xF === 'vel' ? 0.25 : 1;
+            const gx = xs, gl = linF ? (() => { const a = Math.min(...cv.niveis[linF]), b = Math.max(...cv.niveis[linF]), o = []; for (let v = a; v <= b + 1e-9; v += 1) o.push(v); return o; })() : [null];
+            const rotX = gx.map((v) => (Math.abs(v - Math.round(v)) < 1e-9 && (Math.round(v) - Math.round(gx[0])) % 3 === 0 ? String(Math.round(v)) : ''));
+            const rotL = gl.map((v) => (v === null ? '' : (cv.niveis[linF].includes(v) ? A.rotNivel(linF, v) : '')));
+            const calc = combos.map((c) => {
+                const titulo = outros.map((f) => (f === 'cond' || f === 'dosador' ? c[f] : `${A.nomeCurto(f)} ${A.rotNivel(f, c[f])}`)).join(' — ') || ' ';
+                const grid = gl.map((l) => gx.map((x) => gp.prever(ordem.map((f) => (f === xF ? x : (f === linF ? l : c[f]))), true, xF)));
+                return { titulo, grid };
+            });
+            const mk = (fn) => calc.map((p) => ({ titulo: p.titulo, linhas: rotL, colunas: rotX, valores: p.grid.map((r) => r.map(fn)), dicas: p.grid.map((r, i) => r.map((q, j) => `${p.titulo} · ${linF ? A.rotNivel(linF, gl[i]) + ' · ' : ''}${f1(gx[j], 2)} ${ux(xF)}: ${f1(q.m, 1)} ± ${f1(1.96 * q.sd, 1)} · ∂/∂${A.nomeCurto(xF)} = ${f1(q.der, 2)}`)) }));
+            const cel = { celula: 13 * 16 / gx.length, alturaCelula: linF ? Math.max(3, 80 / gl.length) : 16, eixoX: A.nomeFator(xF) + (ux(xF) ? ` (${ux(xF)})` : ''), colunas: Math.min(3, calc.length) };
+            h += `<figure>${G.mapas(mk((q) => q.m), { ...cel, cor: e.cor, paradas: e.paradas, esticada: e.esticada ?? ctx.escala.esticada, rotuloBarra: rotCurto(resp) })}<figcaption>Superfície contínua do GP em grade fina (${f1(passoX, 2)} ${ux(xF)}${linF ? ' × 1°' : ''}), dentro da faixa ensaiada.</figcaption></figure>`;
+            const ders = calc.flatMap((p) => p.grid.flat().map((q) => Math.abs(q.der))).filter(Number.isFinite);
+            const limD = Math.max(0.5, Math.ceil(Math.max(...ders) * 2) / 2);
+            const parD = ctx.escalaDiv.paradas.map(([v, c]) => [v * limD, c]);
+            h += `<figure>${G.mapas(mk((q) => q.der), { ...cel, cor: G.escala(parD), paradas: parD, esticada: false, rotuloBarra: `∂y/∂${A.nomeCurto(xF)} (por ${ux(xF) || 'unidade'})`, formatoBarra: (v) => f1(v, 1) })}<figcaption>Sensibilidade (ganho local): quanto a resposta muda para cada 1 ${ux(xF) || 'unidade'} a mais de ${A.nomeFator(xF).toLowerCase()}. Perto de zero: insensível; lado negativo da escala: a resposta cai.</figcaption></figure>`;
+            const meias = calc.flatMap((p) => p.grid.flat().map((q) => 1.96 * q.sd));
+            const limI = Math.max(1, Math.ceil(Math.max(...meias)));
+            const pI = [...ctx.escala.paradas].sort((a, b) => a[0] - b[0]);
+            const parI = pI.map(([v, c]) => [limI * (pI[pI.length - 1][0] - v) / (pI[pI.length - 1][0] - pI[0][0]), c]).sort((a, b) => a[0] - b[0]);
+            h += `<figure>${G.mapas(mk((q) => 1.96 * q.sd), { ...cel, cor: G.escala(parI), paradas: parI, rotuloBarra: 'Meia-largura IC95%', esticada: false, formatoBarra: (v) => f1(v, 1) })}<figcaption>Incerteza da superfície (meia-largura do intervalo de 95%): cresce longe dos tratamentos ensaiados.</figcaption></figure>`;
+        }
+        if (cv.plr) {
+            const un = (f) => (f === 'vel' ? 'p.p. por km/h' : (f === 'long' || f === 'lat' ? 'p.p. por grau' : 'p.p.'));
+            h += `<h4>Double/debiased machine learning (DML)</h4>
+            <table class="tab num"><thead><tr><th>Fator (tratamento no DML)</th><th>Efeito θ</th><th>Erro-padrão</th><th>IC95%</th><th>p</th><th>Unidade</th></tr></thead><tbody>
+            ${cv.plr.map((o) => `<tr><td>${esc(A.nomeFator(o.fator))}${o.binario ? ` (${esc(String(o.niveis[o.niveis.length - 1]))} − ${esc(String(o.niveis[0]))})` : ''}</td><td>${f1(o.theta, 3)}</td><td>${f1(o.se, 3)}</td><td>${f1(o.lo, 3)} a ${f1(o.hi, 3)}</td><td>${fp(o.p)}</td><td>${un(o.fator)}</td></tr>`).join('')}
+            </tbody></table>
+            <p class="nota">Modelo parcialmente linear: θ é o efeito linear médio do fator, descontado o efeito dos demais (aprendido por Random Forest com ajuste cruzado). Em fatores com resposta não monotônica (ex.: melhor em 0° e pior nos extremos), θ perto de zero não significa ausência de efeito: veja a curva abaixo.</p>`;
+            for (const c of cv.curvas) {
+                const f = c.fator, num = c.pontos.every((p) => typeof p.nivel === 'number');
+                h += `<h5>Curva dose-resposta de ${esc(A.nomeFator(f).toLowerCase())} (AIPW) × médias marginais da ANOVA — maior diferença: ${f1(c.maxDif, 2)} p.p.</h5>`;
+                if (num && c.pontos.length > 2) {
+                    h += `<figure>${G.curvas([{ titulo: A.nomeFator(f), series: [{ nome: 'DML (AIPW)', pts: c.pontos.map((p) => [p.nivel, p.media]), banda: c.pontos.map((p) => [p.nivel, p.lo, p.hi]) }, { nome: 'Média marginal da ANOVA', pts: c.pontos.map((p) => [p.nivel, p.anova]), semLinha: true }] }], { eixoX: A.nomeFator(f), eixoY: rotCurto(resp), colunas: 1 })}<figcaption>Curva do DML com intervalo de 95% e médias marginais da ANOVA.</figcaption></figure>`;
+                }
+                h += `<div class="rolagem"><table class="tab num"><thead><tr><th>${esc(A.nomeFator(f))}</th><th>DML (AIPW)</th><th>IC95%</th><th>Média marginal ANOVA</th><th>Diferença</th></tr></thead><tbody>${c.pontos.map((p) => `<tr><td>${esc(A.rotNivel(f, p.nivel))}</td><td>${f1(p.media, 2)}</td><td>${f1(p.lo, 2)} a ${f1(p.hi, 2)}</td><td>${f1(p.anova, 2)}</td><td>${f1(p.media - p.anova, 2)}</td></tr>`).join('')}</tbody></table></div>`;
+            }
+            h += '<p class="nota">No ensaio fatorial balanceado, os fatores são fixados pelo delineamento (não há confusão a corrigir); por isso a curva do DML deve coincidir com as médias marginais da ANOVA, e serve de conferência. O DML acrescenta informação quando houver dados de campo ou de ensaios não controlados.</p>';
+        }
+        return h;
+    }
+
+    function tabelaParcelas(rows, fatores, unidade) {
+        const resp = Object.keys(Dados.respostas(unidade)).filter((k) => rows[0] && rows[0][k] !== undefined);
+        const nomes = Dados.respostas(unidade);
+        let h = `<div class="rolagem alta"><table class="tab num"><thead><tr><th>Arquivo</th><th>Rep.</th>${fatores.filter((f) => f !== 'dosador').map((f) => `<th>${esc(A.nomeFator(f))}</th>`).join('')}<th>n</th>${resp.map((r) => `<th>${esc(rotCurto(r) || nomes[r])}</th>`).join('')}</tr></thead><tbody>`;
+        for (const r of rows) h += `<tr><td>${esc(r.arquivo)}</td><td>${r.rep}</td>${fatores.filter((f) => f !== 'dosador').map((f) => `<td>${esc(A.rotNivel(f, r[f]))}</td>`).join('')}<td>${r.n}</td>${resp.map((k) => `<td>${f1(r[k], 2)}</td>`).join('')}</tr>`;
+        return h + '</tbody></table></div>';
+    }
+
     // ---------- conclusões automáticas ----------
     function conclusoes(bloco, limite, resposta, alfa) {
         const an = bloco.an;
@@ -306,7 +399,9 @@ const Relatorio = (() => {
         h += `<figure>${mapaRF(bloco.rf, bloco.fatores, ctx.escala, res.resposta, rotOrig + ' — previsão RF', ctx.escalaDiv)}<figcaption>Previsão do RF para tratamentos deixados de fora do treino.</figcaption></figure>`;
         h += `<h4>Erros do RF + SHAP em escala de cores</h4>${mapasErro(bloco.rf, bloco.fatores, ctx)}`;
         for (const m of mapasShap(bloco.rf, bloco.fatores, ctx.escalaDiv)) h += `<figure>${m.svg}<figcaption>Contribuição SHAP de ${esc(A.nomeFator(m.fator).toLowerCase())} em cada tratamento, em relação à média do modelo (${f1(bloco.rf.base, 1)}).</figcaption></figure>`;
-        h += `<details class="apendice"><summary>Médias de todas as respostas por tratamento</summary>${tabelaDescritiva(bloco.desc, unidade)}</details>`;
+        if (bloco.curva) h += `<h3>${num}.5 Curva do processo (superfície contínua e DML)</h3>${htmlCurva(bloco, ctx)}`;
+        h += `<h3>${num}.${bloco.curva ? 6 : 5} Dados completos</h3><details class="apendice" open><summary>Médias de todas as respostas por tratamento</summary>${tabelaDescritiva(bloco.desc, unidade)}</details>`;
+        h += `<details class="apendice"><summary>Todas as parcelas (${bloco.rows.length})</summary>${tabelaParcelas(bloco.rows, bloco.fatores, unidade)}</details>`;
         return h + '</section>';
     }
 
@@ -375,30 +470,40 @@ const Relatorio = (() => {
         passos.push(`<b>Validação do Random Forest.</b> Validação cruzada agrupada por tratamento em ${a.folds} grupos: as repetições de um mesmo tratamento ficam sempre no mesmo grupo, de modo que cada tratamento é previsto por um modelo que não viu nenhuma de suas repetições (${Math.max(50, Math.round(a.arvores / 2))} árvores em cada modelo da validação). São informados o R² no treino, o R² na validação e, por tratamento, o erro fora da amostra (previsão média − média observada), seu valor absoluto e a raiz do erro quadrático médio. Esses erros, e o erro do modelo completo que o SHAP explica ((base + Σφ) − média observada), são apresentados em mapas de cores com a mesma escala divergente, para mostrar onde o RF erra e onde a explicação do SHAP parte de previsões imprecisas.`);
         passos.push(`<b>Importância por permutação.</b> No modelo completo, as colunas de cada fator foram embaralhadas juntas (5 repetições) e a importância é a queda média do R². Esse método não favorece fatores com muitos níveis, ao contrário da importância por impureza.`);
         passos.push(`<b>SHAP exato com interações.</b> Para cada tratamento x, o valor de uma coalizão S de fatores é v(S) = média, sobre todos os tratamentos observados (fundo), da previsão com os fatores de S fixados nos níveis de x. O valor SHAP do fator i é φ<sub>i</sub> = Σ<sub>S</sub> |S|!(M − |S| − 1)!/M! · [v(S ∪ {i}) − v(S)], com M fatores, e as interações de pares seguem o índice de interação de Shapley (convenção do pacote shap, metade para cada fator do par). A soma dos φ com o valor de base (média do modelo) reproduz a previsão. Para comparar com a ANOVA, calcula-se a parcela de cada efeito principal e de cada par no total: SQ do termo na ANOVA e |valor SHAP| médio no RF.`);
+        const temCurva = res.porDosador.some((b) => b.curva);
+        if (temCurva && res.porDosador.some((b) => b.curva?.gp)) passos.push(`<b>Superfície contínua (curva do processo).</b> Para cada dosador, as médias dos tratamentos da resposta original foram ajustadas por um processo gaussiano: y(x) = μ + f(x), com f de covariância k(x, x') = σ<sub>f</sub>² · exp(−½ Σ<sub>d</sub> (x<sub>d</sub> − x'<sub>d</sub>)² / ℓ<sub>d</sub>²), fatores numéricos escalados para 0–1 e condução como 0/1. O ruído de cada média foi fixado em QM<sub>erro</sub> / n (da ANOVA), de modo que a superfície respeita a incerteza experimental. σ<sub>f</sub> e os comprimentos de escala ℓ<sub>d</sub> foram estimados maximizando a verossimilhança marginal (Nelder-Mead). A superfície fornece, em qualquer ponto da faixa ensaiada, a média prevista, o intervalo de 95% (± 1,96 desvio-padrão posterior) e a sensibilidade ∂y/∂V (derivada analítica), calculadas numa grade fina (velocidade a cada 0,25 km/h e ângulos a cada 1°). A qualidade é medida pelo R² deixando um tratamento de fora, pela fórmula exata do GP. É a característica estática do dosador (regime permanente); uma função de transferência dinâmica exigiria ensaios com variação de velocidade no tempo.`);
+        if (temCurva && res.porDosador.some((b) => b.curva?.plr)) passos.push(`<b>Double/debiased machine learning.</b> Para cada fator D, com os demais fatores X: (i) modelo parcialmente linear y = θ·D + g(X) + e, com ỹ = y − ĝ(X) e D̃ = D − m̂(X) estimados por Random Forest (60 árvores, mínimo de 5 parcelas por folha) com ajuste cruzado em 5 grupos aleatórios de parcelas, θ = Σ D̃·ỹ / Σ D̃² e erro-padrão pelo escore ortogonal de Neyman (Chernozhukov et al., 2018); (ii) curva dose-resposta por AIPW: para cada nível v, ψ<sub>v</sub> = m̂(v, X) + 1{D = v}·(y − m̂(v, X)) / p̂(v | X), com m̂ por Random Forest em ajuste cruzado e p̂ pela frequência do nível entre as parcelas com os mesmos demais fatores; a média de ψ<sub>v</sub> é o valor da curva e o erro-padrão é o desvio-padrão de ψ<sub>v</sub> / √n. A curva é comparada com as médias marginais da ANOVA.`);
         if (res.conjunto) passos.push(`<b>Comparação entre dosadores.</b> O dosador entra como mais um fator, em nova ANOVA e novo RF+SHAP, usando apenas os tratamentos presentes em todos os dosadores${res.conjunto.excluidos ? ` (${res.conjunto.excluidos} parcelas ficaram de fora)` : ''}.`);
         passos.push(`<b>Gráficos.</b> Mapas de calor com a escala ${esc(Graficos.PRESETS[estado.escala.preset]?.nome || 'personalizada')} (paradas: ${estado.escala.paradas.map(([v]) => f1(v, 0)).join(', ')}), interpolação linear entre paradas; em respostas em que menor é melhor, as cores são invertidas. SHAP e diferença RF − ANOVA usam a escala divergente ${esc(Graficos.PRESETS_DIV[estado.escalaDiv.preset]?.nome || 'personalizada')}, centrada em zero.`);
         passos.push('<b>Software.</b> Comparador de Dosadores (aplicação web executada no navegador), com distribuições F, t, normal e da amplitude estudentizada da biblioteca jStat; ANOVA, Tukey e pressupostos conferidos com statsmodels e scipy nos dados de Andrade.');
-        return `<section class="bloco"><h2>2. Metodologia</h2><p>Os resultados das seções seguintes foram gerados nesta ordem:</p><ol class="metodo">${passos.map((x) => `<li>${x}</li>`).join('')}</ol></section>`;
+        const regras = ['Cada repetição de um arquivo é uma parcela; a resposta é calculada por parcela, nunca por semente.', 'A ANOVA usa todos os fatores com mais de um nível e todas as interações; Tukey e desdobramentos usam o QM do erro do modelo completo.', 'O Random Forest usa a mesma resposta da ANOVA, valida deixando tratamentos inteiros de fora e mede importância por permutação; o SHAP é exato e mostra as interações.', 'A referência agronômica é obrigatória e entra no cálculo de cada resposta.', 'Na comparação entre dosadores, entram só os tratamentos presentes em todos eles.', 'Os cálculos rodam no navegador, sem envio dos dados para servidores.'];
+        return `<section class="bloco"><h2>2. Metodologia</h2><p><b>Regras gerais da ferramenta:</b></p><ul>${regras.map((x) => `<li>${x}</li>`).join('')}</ul><p>Os resultados das seções seguintes foram gerados nesta ordem:</p><ol class="metodo">${passos.map((x) => `<li>${x}</li>`).join('')}</ol></section>`;
     }
 
     const REFS = `<section class="bloco"><h2>Referências</h2><ul class="refs">
         <li>ANDRADE, Henrique Gonçalves. <i>Efeito de velocidade, inclinação longitudinal e sistema de condução de sementes em dosadores pneumáticos</i>. Dissertação (Mestrado em Agronomia) – Faculdade de Agronomia Eliseu Maciel, Universidade Federal de Pelotas, Pelotas, 2026.</li>
         <li>BREIMAN, L. Random forests. <i>Machine Learning</i>, v. 45, p. 5–32, 2001.</li>
+        <li>CHERNOZHUKOV, V.; CHETVERIKOV, D.; DEMIRER, M.; DUFLO, E.; HANSEN, C.; NEWEY, W.; ROBINS, J. Double/debiased machine learning for treatment and structural parameters. <i>The Econometrics Journal</i>, v. 21, n. 1, p. C1–C68, 2018.</li>
         <li>COELHO, J. L. D. Ensaio e certificação de máquinas para a semeadura. In: MIALHE, L. G. <i>Máquinas agrícolas: ensaio e certificação</i>. Piracicaba: FEALQ, 1996. p. 55–70.</li>
         <li>ESTECHE, Rafael dos Santos. <i>Aplicação de técnicas de inteligência artificial para verificar influência na qualidade de semeadura de precisão</i>. Trabalho de Conclusão de Curso (Engenharia Eletrônica) – Universidade Federal de Pelotas, Pelotas, 2024.</li>
         <li>INTERNATIONAL ORGANIZATION FOR STANDARDIZATION. <i>ISO 5690-2:1984 — Equipment for distributing fertilizers — Test methods — Part 2: Fertilizer distributors in lines</i>. Genebra: ISO, 1984.</li>
         <li>LUNDBERG, S. M.; LEE, S.-I. A unified approach to interpreting model predictions. In: <i>Advances in Neural Information Processing Systems 30</i>. 2017. p. 4765–4774.</li>
+        <li>RASMUSSEN, C. E.; WILLIAMS, C. K. I. <i>Gaussian processes for machine learning</i>. Cambridge: MIT Press, 2006.</li>
         </ul></section>`;
 
     /** Endereço do app, coautores na geração dos dados e pedido de citação (sempre no relatório). */
     const LINK_APP = 'https://marlonsigales.github.io/app-compara-dosadores/index.html';
+    const DESENVOLVEDOR = 'Marlon Soares Sigales';
+    const COAUTORES_PROJETO = ['Roger Toscan Spagnolo', 'Eduardo Walker', 'Fabrício Ardais Medeiros'];
     const COAUTORES = ['Marlon Soares Sigales', 'Ângelo Vieira dos Reis', 'Rafael dos Santos Esteche', 'Jean Carlos Scheunemann', 'Henrique Gonçalves Andrade'];
-    const CITACAO = 'SIGALES, Marlon Soares; REIS, Ângelo Vieira dos; ESTECHE, Rafael dos Santos; SCHEUNEMANN, Jean Carlos; ANDRADE, Henrique Gonçalves. <i>Comparador de Dosadores</i>: análise de ensaios de dosadores de sementes e adubo por ANOVA e Random Forest + SHAP. Pelotas: Laboratório de Instrumentação Agrícola, Universidade Federal de Pelotas, 2026. Aplicativo web. Disponível em: ' + LINK_APP + '.';
+    const CITACAO = 'SIGALES, Marlon Soares; SPAGNOLO, Roger Toscan; WALKER, Eduardo; MEDEIROS, Fabrício Ardais; REIS, Ângelo Vieira dos; ESTECHE, Rafael dos Santos; SCHEUNEMANN, Jean Carlos; ANDRADE, Henrique Gonçalves. <i>Comparador de Dosadores</i>: análise de ensaios de dosadores de sementes e adubo por ANOVA e Random Forest + SHAP. Pelotas: Laboratório de Instrumentação Agrícola, Universidade Federal de Pelotas, 2026. Aplicativo web. Disponível em: ' + LINK_APP + '.';
     function blocoCreditos() {
         const hoje = new Date().toLocaleDateString('pt-BR', { day: 'numeric', month: 'short', year: 'numeric' }).replace(/ de /g, ' ');
         return `<div class="creditos"><p><b>Ferramenta:</b> Comparador de Dosadores — <a href="${LINK_APP}">${LINK_APP}</a></p>
+        <p><b>Desenvolvedor:</b> ${esc(DESENVOLVEDOR)} · <b>Coautores do projeto:</b> ${COAUTORES_PROJETO.map(esc).join(', ')}.</p>
         <p><b>Coautores na geração dos dados:</b> ${COAUTORES.map(esc).join(', ')}.</p>
-        <p><b>Como citar:</b> ao usar resultados gerados por esta ferramenta, cite-a como: ${CITACAO} Acesso em: ${esc(hoje)}.</p></div>`;
+        <p><b>Como citar:</b> ao usar resultados gerados por esta ferramenta, cite-a como: ${CITACAO} Acesso em: ${esc(hoje)}.</p>
+        <p><b>Anexo:</b> solicitamos que este relatório completo seja incluído como anexo nos trabalhos (artigos, TCC, dissertações, teses e relatórios técnicos) que usarem seus resultados.</p></div>`;
     }
 
     function documento(ctx) {
@@ -414,10 +519,10 @@ const Relatorio = (() => {
 
     /** HTML autônomo (para baixar). */
     function htmlAutonomo(ctx, css) {
-        return `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${esc(ctx.estado.projeto.titulo || 'Relatório — Comparador de Dosadores')}</title><style>${css}</style></head><body class="relatorio-solo"><main class="relatorio">${documento(ctx)}<footer class="rel-rodape">Comparador de Dosadores — ${LINK_APP} · Coautores na geração dos dados: ${COAUTORES.map(esc).join(', ')} · Laboratório de Instrumentação Agrícola · UFPel</footer></main></body></html>`;
+        return `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${esc(ctx.estado.projeto.titulo || 'Relatório — Comparador de Dosadores')}</title><style>${css}</style></head><body class="relatorio-solo"><main class="relatorio">${documento(ctx)}<footer class="rel-rodape">Comparador de Dosadores — ${LINK_APP} · Desenvolvedor: ${DESENVOLVEDOR} · Coautores do projeto: ${COAUTORES_PROJETO.map(esc).join(', ')} · Coautores na geração dos dados: ${COAUTORES.map(esc).join(', ')} · Inclua este relatório como anexo dos trabalhos que usarem seus resultados · Laboratório de Instrumentação Agrícola · UFPel</footer></main></body></html>`;
     }
 
-    return { documento, htmlAutonomo, secaoBloco, tabelaAnova, pressupostos, tabelaTukey, tabelaDesdobramento, tabelaRF, mapaResposta, mapaRF, mapaDiferenca, mapaErro, mapasErro, mapasShap, curvasVelocidade, barrasComparativo, conclusoes, respNome };
+    return { documento, htmlAutonomo, secaoBloco, tabelaAnova, pressupostos, tabelaTukey, tabelaDesdobramento, tabelaRF, htmlCurva, mapaResposta, mapaRF, mapaDiferenca, mapaErro, mapasErro, mapasShap, curvasVelocidade, barrasComparativo, conclusoes, respNome };
 })();
 
 if (typeof module !== 'undefined') module.exports = Relatorio;

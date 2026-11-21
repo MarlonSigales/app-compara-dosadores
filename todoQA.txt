@@ -23,7 +23,10 @@ Situações: [fazer] [futuro] [resolvido dd/mm/aaaa] [rejeitado]
 20 [rejeitado 21/11/2026] Preencher dados faltantes com 0: um 0 vira espaçamento "múltiplo" (ou massa zero) e muda os resultados em vez de neutralizar. Células vazias continuam ignoradas e o balanceamento é feito pelas primeiras repetições.
 21 [resolvido 21/11/2026] Erros do RF + SHAP em escala de cores (aba RF + SHAP, Gráficos e relatório): erro fora da amostra com sinal, erro absoluto e erro do modelo completo que o SHAP explica ((base + Σφ) − observado), na mesma escala; tabela com raiz do erro quadrático médio e erro médio do modelo SHAP.
 22 [resolvido 21/11/2026] Relatório sempre com o link do app, os coautores na geração dos dados (Marlon Soares Sigales, Ângelo Vieira dos Reis, Rafael dos Santos Esteche, Jean Carlos Scheunemann, Henrique Gonçalves Andrade) e o pedido de citação da ferramenta (no início, no fim e no rodapé do HTML baixado).
-23 [futuro] Curva do processo ("função de transferência" estática) de cada dosador: superfície contínua com incerteza e, para dados de campo/observacionais, double/debiased ML (aguarda decisão).
+23 [resolvido 21/11/2026] Curva do processo de cada dosador (característica estática): superfície contínua por processo gaussiano (ruído das médias = QM do erro/n), com curvas e faixa de 95%, mapa em grade fina, sensibilidade ∂y/∂V e incerteza; DML (modelo parcialmente linear por fator e curva dose-resposta AIPW), conferido com as médias marginais da ANOVA (diferença < 0,2 p.p. no exemplo). Nova aba "Curva do processo" e seção no relatório.
+24 [resolvido 21/11/2026] Coautores do projeto: Roger Toscan Spagnolo, Eduardo Walker e Fabrício Ardais Medeiros (rodapé do app, relatório e citação). Relatório pede inclusão como anexo nos trabalhos.
+25 [resolvido 21/11/2026] Relatório completo: regras gerais da ferramenta (antes só na página Início), metodologia de todas as análises, médias por tratamento e todas as parcelas de cada dosador.
+26 [fazer] Conferir o nome completo de Eduardo Walker e de Jean Carlos Scheunemann no Lattes.
 
 === O QUE FALTA
 13 [fazer] Conferir a impressão em PDF num computador de verdade (quebras de página dos mapas grandes).

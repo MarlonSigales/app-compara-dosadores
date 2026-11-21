@@ -82,6 +82,26 @@ const sh = Floresta.shap(mod, cod, trat, fat);
 t('SHAP: soma dos φ + base = previsão', sh.every((o) => perto(o.phi.reduce((s, v) => s + v, 0) + o.base, o.previsao, 1e-9)));
 t('SHAP: linhas da matriz de interações somam φ', sh.every((o) => o.inter.every((lin, i) => perto(lin.reduce((s, v) => s + v, 0), o.phi[i], 1e-9))));
 
+// superfície contínua e DML
+global.Superficie = require(path.join(raiz, 'js/superficie.js'));
+{
+    const fat3 = ['cond', 'ang', 'vel'];
+    const niv3 = Object.fromEntries(fat3.map((f) => [f, Estat.niveisDe(jd, f)]));
+    const cel = [...an.celulas.values()].map((c) => ({ niveis: c.niveis, media: c.media, n: c.n }));
+    const gp = Superficie.ajustarGP(cel, an.fatores, an.niveis, an.erro.qm);
+    t('GP: R² deixando um de fora > 0,8 (JD)', gp.r2loo > 0.8);
+    const c0 = cel[0], p0 = gp.prever(c0.niveis, true);
+    t('GP: passa perto das médias observadas', Math.abs(p0.m - c0.media) < 3 * Math.sqrt(an.erro.qm / c0.n) + 3);
+    t('GP: incerteza positiva', p0.sd > 0);
+    const pa = gp.prever(['sem tubo' === 'x' ? 0 : c0.niveis[0], 0, 12.5], true, 'vel');
+    t('GP: derivada finita entre níveis', Number.isFinite(pa.der));
+    // Cholesky e Nelder-Mead
+    const L = Superficie.cholesky([[4, 2], [2, 3]]);
+    t('Cholesky', perto(L[0][0], 2, 1e-12) && perto(L[1][1], Math.sqrt(2), 1e-12));
+    const mn = Superficie.neldermead((x) => (x[0] - 1) ** 2 + (x[1] + 2) ** 2, [0, 0], 400);
+    t('Nelder-Mead', perto(mn[0], 1, 1e-3) && perto(mn[1], -2, 1e-3));
+}
+
 // orquestração com os arquivos de exemplo (se existirem descompactados em tests/tmp)
 (async () => {
     const dir = path.join(raiz, 'exemplo');
@@ -103,6 +123,8 @@ t('SHAP: linhas da matriz de interações somam φ', sh.every((o) => o.inter.eve
         const b = r.porDosador.find((x) => x.nome === 'JD');
         t('recorte de Andrade reproduz SQ da velocidade (JD ≈ 6371)', perto(b.an.tabela.find((x) => x.nome === 'vel').sq, 6371.13, 0.02));
         t('comparação entre dosadores existe', !!r.conjunto && r.conjunto.fatores[0] === 'dosador');
+        t('curva do processo calculada', !!b.curva && !!b.curva.gp && b.curva.plr.length === b.fatores.length);
+        t('DML (AIPW) repete as médias marginais da ANOVA no fatorial', b.curva.curvas.every((c) => c.maxDif < 1.5));
     }
     console.log(`${ok} de ${ok + falhas} testes passaram`);
     process.exit(falhas ? 1 : 0);

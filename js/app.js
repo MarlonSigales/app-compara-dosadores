@@ -18,7 +18,7 @@ const App = (() => {
         dosadores: [],
         padrao: { papeis: [], nomesOutros: {} },
         conducaoRotulos: {},
-        analise: { resposta: 'A', transformacao: 'nenhuma', alfa: 0.05, arvores: 200, folds: 10, igualarRepeticoes: true, descartarPrimeiro: false, recorte: {}, limite: null, maxGrupos: 40 },
+        analise: { resposta: 'A', transformacao: 'nenhuma', alfa: 0.05, arvores: 200, folds: 10, igualarRepeticoes: true, descartarPrimeiro: false, recorte: {}, limite: null, maxGrupos: 40, superficie: true, dml: true },
         escala: { preset: 'ryg90', paradas: Graficos.PRESETS.ryg90.paradas.map((p) => p.slice()), esticada: true },
         escalaDiv: { preset: 'vng', paradas: Graficos.PRESETS_DIV.vng.paradas.map((p) => p.slice()) }
     });
@@ -277,7 +277,11 @@ const App = (() => {
         h += `<div class="cartao"><h3>Random Forest + SHAP</h3><div class="campos">
             <label><span>Árvores</span><input type="number" min="50" max="1000" step="50" data-an="arvores" value="${a.arvores}"></label>
             <label><span>Grupos da validação cruzada</span><input type="number" min="3" max="20" step="1" data-an="folds" value="${a.folds}"></label></div>
-            <p class="nota">Mais árvores deixam o resultado mais estável e a análise mais lenta.</p></div>`;
+            <p class="nota">Mais árvores deixam o resultado mais estável e a análise mais lenta.</p></div>
+            <div class="cartao"><h3>Curva do processo</h3>
+            <label><input type="checkbox" data-an="superficie"${a.superficie !== false ? ' checked' : ''}> Superfície contínua por processo gaussiano (resposta, incerteza e sensibilidade em qualquer ponto da faixa ensaiada)</label>
+            <label><input type="checkbox" data-an="dml"${a.dml !== false ? ' checked' : ''}> Double/debiased machine learning (efeito de cada fator e curva dose-resposta; conferência com a ANOVA)</label>
+            <p class="nota">As duas aumentam o tempo da análise (alguns segundos por dosador).</p></div>`;
         h += erros.length ? `<p class="alerta">${erros.map(esc).join('<br>')}</p>` : '';
         h += `<button type="button" class="primario" data-acao="rodar"${erros.length ? ' disabled' : ''}>▶ Rodar análises</button>`;
         el.innerHTML = h;
@@ -302,7 +306,7 @@ const App = (() => {
             const est = { ...estado, dosadores: estado.dosadores.map((d) => { const r = Dados.referenciaAgronomica(d); return { ...d, xref: r.xref, adubo: r.gPorMetro ? { gPorMetro: r.gPorMetro, intervalo: d.intervalo, dose: d.dose } : null }; }) };
             est.analise = { ...estado.analise, limite: limiteAtual() };
             res = await Analise.executar(est, prog);
-            abaAtual = { anova: 0, rf: 0, graf: 0 };
+            abaAtual = { anova: 0, rf: 0, graf: 0, curva: 0 };
             location.hash = '#anova';
         } catch (e) {
             console.error(e);
@@ -375,12 +379,21 @@ const App = (() => {
         for (const m of R.mapasShap(b.rf, b.fatores, c.escalaDiv)) h += `<figure>${m.svg}<figcaption>SHAP de ${esc(Analise.nomeFator(m.fator).toLowerCase())}.</figcaption></figure>`;
         $('#graficos-corpo').innerHTML = h;
     }
+    function renderCurva() {
+        if (!res) { $('#abas-curva').innerHTML = ''; $('#curva-corpo').innerHTML = semRes; return; }
+        const bs = blocos().filter((x) => x.b.curva);
+        if (!bs.length) { $('#abas-curva').innerHTML = ''; $('#curva-corpo').innerHTML = '<p class="nota">A curva do processo é calculada por dosador. Ligue a opção na etapa 4 e rode de novo.</p>'; return; }
+        if (abaAtual.curva === undefined || abaAtual.curva >= bs.length) abaAtual.curva = 0;
+        $('#abas-curva').innerHTML = bs.map((x, i) => `<button type="button" data-aba="curva" data-i="${i}" class="${i === abaAtual.curva ? 'ativa' : ''}">${esc(x.titulo)}</button>`).join('');
+        const b = bs[abaAtual.curva].b; b.rowsUsadas = b.rows;
+        $('#curva-corpo').innerHTML = Relatorio.htmlCurva(b, ctx());
+    }
     function renderRelatorio() {
         $('#relatorio-corpo').innerHTML = res ? Relatorio.documento(ctx()) : semRes;
     }
 
     // ---------- navegação ----------
-    const PAGINAS = { inicio: () => {}, dosadores: renderDosadores, fatores: renderFatores, analise: renderAnalise, anova: renderAnova, rf: renderRF, graficos: renderGraficos, relatorio: renderRelatorio };
+    const PAGINAS = { inicio: () => {}, dosadores: renderDosadores, fatores: renderFatores, analise: renderAnalise, anova: renderAnova, rf: renderRF, curva: renderCurva, graficos: renderGraficos, relatorio: renderRelatorio };
     function paginaAtual() { const p = location.hash.replace('#', ''); return PAGINAS[p] ? p : 'inicio'; }
     let renderizando = false, pendente = false;
     function render() {
@@ -395,7 +408,7 @@ const App = (() => {
         $$('#etapas a').forEach((a) => a.classList.toggle('ativo', a.dataset.pag === p));
         document.body.classList.remove('sidebar-aberta');
         $('#topbar-projeto-nome').textContent = estado.projeto.titulo || (estado.dosadores.length ? estado.dosadores.map((d) => d.nome).join(' × ') : 'Sem título');
-        const prontas = { dosadores: estado.dosadores.some((d) => d.arquivos.length), fatores: !validarPadrao().length, analise: !!res, anova: !!res, rf: !!res, graficos: !!res, relatorio: !!res };
+        const prontas = { dosadores: estado.dosadores.some((d) => d.arquivos.length), fatores: !validarPadrao().length, analise: !!res, anova: !!res, rf: !!res, curva: !!res, graficos: !!res, relatorio: !!res };
         $$('#etapas a').forEach((a) => a.classList.toggle('etapa-feito', !!prontas[a.dataset.pag]));
         PAGINAS[p]();
     }

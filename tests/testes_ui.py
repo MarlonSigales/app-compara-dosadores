@@ -35,13 +35,17 @@ async def main():
         txt = await pg.inner_text('#anova-corpo')
         t('quadro da ANOVA aparece', 'Quadro da ANOVA' in txt and 'Erro' in txt)
         t('Tukey aparece', 'Tukey' in txt)
-        for aba in ['rf', 'graficos', 'relatorio']:
+        for aba in ['rf', 'curva', 'graficos', 'relatorio']:
             await pg.goto(URL + '#' + aba); await pg.wait_for_timeout(400)
         t('relatório tem referências', await pg.locator('#relatorio-corpo >> text=Referências').count() >= 1)
         rel = await pg.inner_text('#relatorio-corpo')
         t('relatório traz o link do app', 'marlonsigales.github.io/app-compara-dosadores' in rel)
         t('relatório traz os coautores', all(n in rel for n in ['Marlon Soares Sigales', 'Ângelo Vieira dos Reis', 'Rafael dos Santos Esteche', 'Jean Carlos Scheunemann', 'Henrique Gonçalves Andrade']))
         t('relatório pede citação', 'Como citar' in rel)
+        t('relatório traz coautores do projeto', all(n in rel for n in ['Roger Toscan Spagnolo', 'Eduardo Walker', 'Fabrício Ardais Medeiros']))
+        t('relatório pede anexo', 'anexo' in rel)
+        t('relatório traz curva do processo e DML', 'Curva do processo' in rel and 'Double/debiased' in rel)
+        t('relatório traz todas as parcelas', 'Todas as parcelas' in rel)
         t('relatório tem mapas SVG', await pg.locator('#relatorio-corpo svg').count() > 10)
         t('relatório mostra os erros do RF + SHAP em cores', await pg.locator('#relatorio-corpo >> text=Erro do modelo completo que os valores SHAP explicam').count() >= 1)
         await pg.goto(URL + '#rf'); await pg.wait_for_timeout(400)

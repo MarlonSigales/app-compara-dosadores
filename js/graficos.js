@@ -100,7 +100,7 @@ const Graficos = (() => {
             const ox = (k % ncol) * pw + 44, oy = Math.floor(k / ncol) * ph + 22;
             s += `<text x="${ox + (p.colunas.length * cw) / 2}" y="${oy - 8}" text-anchor="middle" font-size="11" fill="${TINTA}" font-weight="600">${esc(p.titulo)}</text>`;
             p.linhas.forEach((ln, i) => {
-                s += `<text x="${ox - 5}" y="${oy + i * ch + ch / 2 + 3.5}" text-anchor="end" font-size="9.5" fill="${SEC}">${esc(ln)}</text>`;
+                if (ln !== '') s += `<text x="${ox - 5}" y="${oy + i * ch + ch / 2 + 3.5}" text-anchor="end" font-size="9.5" fill="${SEC}">${esc(ln)}</text>`;
                 p.colunas.forEach((cl, j) => {
                     const v = p.valores[i][j];
                     const c = cor(v);
@@ -110,9 +110,10 @@ const Graficos = (() => {
                     if (cfg.valores) s += `<text x="${ox + j * cw + cw / 2}" y="${oy + i * ch + ch / 2 + 3}" text-anchor="middle" font-size="7" fill="${tintaSobre(c)}" pointer-events="none">${fmt(v, 0)}</text>`;
                 });
             });
-            const passo = p.colunas.length > 10 ? 3 : 1;
+            const vazios = p.colunas.some((c) => c === '');
+            const passo = vazios ? 1 : (p.colunas.length > 10 ? 3 : 1);
             p.colunas.forEach((cl, j) => {
-                if (j % passo) return;
+                if (j % passo || cl === '') return;
                 s += `<text x="${ox + j * cw + cw / 2}" y="${oy + p.linhas.length * ch + 12}" text-anchor="middle" font-size="9.5" fill="${SEC}">${esc(cl)}</text>`;
             });
             if (cfg.eixoX) s += `<text x="${ox + (p.colunas.length * cw) / 2}" y="${oy + p.linhas.length * ch + 26}" text-anchor="middle" font-size="10" fill="${TINTA}">${esc(cfg.eixoX)}</text>`;
@@ -136,17 +137,19 @@ const Graficos = (() => {
         const ncol = Math.min(cfg.colunas || 3, paineis.length);
         const nl = Math.ceil(paineis.length / ncol);
         const pw = 250, ph = 190, W = ncol * pw + 10, H = nl * ph + 40;
-        const todos = paineis.flatMap((p) => p.series.flatMap((s) => s.pts));
+        const todos = paineis.flatMap((p) => p.series.flatMap((s) => s.pts.concat((s.banda || []).flatMap((b) => [[b[0], b[1]], [b[0], b[2]]]))));
         const xs = todos.map((p) => p[0]), ys = todos.map((p) => p[1]).filter(Number.isFinite);
         const x0 = cfg.xmin ?? Math.min(...xs), x1 = cfg.xmax ?? Math.max(...xs);
         const passoY = (() => { const bruto = (Math.max(...ys) - Math.min(...ys, cfg.limite ?? Infinity)) / 4; return [1, 2, 5, 10, 20, 25, 50].find((p) => p >= bruto) || 50; })();
         const y0 = cfg.ymin ?? Math.floor(Math.min(...ys, cfg.limite ?? Infinity) / passoY) * passoY;
         const y1 = cfg.ymax ?? Math.ceil(Math.max(...ys) / passoY) * passoY;
         const nomes = [...new Set(paineis.flatMap((p) => p.series.map((s) => s.nome)))];
+        const legenda = nomes.filter((n) => paineis.some((p) => p.series.some((s) => s.nome === n && !s.semLegenda)));
         let s = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="100%" style="max-width:${W * 1.25}px" font-family="Carlito, Calibri, 'Segoe UI', Arial, sans-serif" role="img" aria-label="${esc(cfg.titulo || 'Curvas')}">`;
         // legenda
         let lx = 50;
-        nomes.forEach((n, i) => {
+        legenda.forEach((n) => {
+            const i = nomes.indexOf(n);
             s += marcador(MARCAS[i % 8], lx, 12, 3.5, SERIES[i % 8]) + `<line x1="${lx - 9}" x2="${lx + 9}" y1="12" y2="12" stroke="${SERIES[i % 8]}" stroke-width="2"/><text x="${lx + 14}" y="15.5" font-size="10.5" fill="${TINTA}">${esc(n)}</text>`;
             lx += 24 + n.length * 5.6;
         });
@@ -165,8 +168,13 @@ const Graficos = (() => {
             if (cfg.eixoX) s += `<text x="${ox + w / 2}" y="${oy + h + 27}" text-anchor="middle" font-size="10" fill="${TINTA}">${esc(cfg.eixoX)}</text>`;
             if (cfg.eixoY && k % ncol === 0) s += `<text transform="translate(${ox - 30},${oy + h / 2}) rotate(-90)" text-anchor="middle" font-size="10" fill="${TINTA}">${esc(cfg.eixoY)}</text>`;
             p.series.forEach((se) => {
-                const i = nomes.indexOf(se.nome), c = SERIES[i % 8];
+                const i = nomes.indexOf(se.nome), c = se.cor || SERIES[i % 8];
+                if (se.banda && se.banda.length) {
+                    const b = [...se.banda].sort((u, v) => u[0] - v[0]);
+                    s += `<polygon fill="${c}" fill-opacity="0.16" stroke="none" points="${b.map((q) => `${X(q[0])},${Y(Math.min(Math.max(q[2], y0), y1))}`).join(' ')} ${[...b].reverse().map((q) => `${X(q[0])},${Y(Math.min(Math.max(q[1], y0), y1))}`).join(' ')}"/>`;
+                }
                 const pts = se.pts.filter((q) => Number.isFinite(q[1])).sort((a, b) => a[0] - b[0]);
+                if (se.semLinha) { for (const q of pts) s += `<g>${marcador(MARCAS[i % 8], X(q[0]), Y(q[1]), 2.4, c)}<title>${esc(`${p.titulo} · ${se.nome} · ${fmt(q[0], 1)}: ${fmt(q[1], 1)}`)}</title></g>`; return; }
                 s += `<polyline fill="none" stroke="${c}" stroke-width="2" ${se.tracejada ? 'stroke-dasharray="5 3"' : ''} points="${pts.map((q) => `${X(q[0])},${Y(q[1])}`).join(' ')}"/>`;
                 if (!se.semPontos) for (const q of pts) s += `<g>${marcador(MARCAS[i % 8], X(q[0]), Y(q[1]), 2.6, c)}<title>${esc(`${p.titulo} · ${se.nome} · ${fmt(q[0], 1)}: ${fmt(q[1], 1)}`)}</title></g>`;
             });
