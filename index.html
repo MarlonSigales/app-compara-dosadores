@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<!-- © 2026 Comparador de Dosadores — Marlon Sigales. Todos os direitos reservados; copiar, reproduzir ou alterar exige autorização do autor (ver LICENSE). -->
+<html lang="pt-BR">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Compara dosadores de sementes e adubo a partir dos dados brutos de bancada: ANOVA fatorial com Tukey e desdobramentos, Random Forest + SHAP e relatório completo. Roda no navegador.">
+    <title>Comparador de Dosadores</title>
+    <link rel="stylesheet" href="css/estilo.css?v=20261121a">
+</head>
+<body>
+<header class="topo">
+    <a class="marca" href="#inicio"><img src="img/logos/lia.png" alt="" onerror="this.style.display='none'"><span>Comparador de Dosadores</span></a>
+    <span class="sub">Engenharia Agrícola · CEng/UFPel</span>
+    <div class="acoes-topo">
+        <button type="button" data-acao="novo" title="Começar um projeto vazio">🗋 Novo</button>
+        <button type="button" data-acao="exemplo" title="Carregar os ensaios de Andrade (John Deere, Precision Planting e Matermacc)">📘 Exemplo</button>
+        <button type="button" data-acao="exportar" title="Baixar o projeto inteiro, com os dados brutos">⬇ Exportar JSON</button>
+        <label class="botao" title="Abrir um projeto exportado">⬆ Importar JSON<input type="file" id="importar-json" accept=".json,application/json" hidden></label>
+    </div>
+</header>
+
+<nav class="etapas" id="etapas">
+    <a href="#inicio" data-pag="inicio"><b>1</b> Início</a>
+    <a href="#dosadores" data-pag="dosadores"><b>2</b> Dosadores e dados</a>
+    <a href="#fatores" data-pag="fatores"><b>3</b> Nome dos arquivos</a>
+    <a href="#analise" data-pag="analise"><b>4</b> Análise</a>
+    <a href="#anova" data-pag="anova"><b>5</b> ANOVA</a>
+    <a href="#rf" data-pag="rf"><b>6</b> RF + SHAP</a>
+    <a href="#graficos" data-pag="graficos"><b>7</b> Gráficos e cores</a>
+    <a href="#relatorio" data-pag="relatorio"><b>8</b> Relatório</a>
+</nav>
+
+<main id="conteudo">
+    <section class="pagina" id="pag-inicio">
+        <h1>Comparador de Dosadores</h1>
+        <p class="intro">Compara dosadores de sementes ou adubo a partir dos dados brutos de bancada (intervalos entre sementes em tempo ou distância, ou massa por amostra). Faz a ANOVA fatorial com todas as interações, os testes de Tukey e os desdobramentos como no trabalho de Henrique Gonçalves Andrade, e a versão corrigida do Random Forest + SHAP. No fim, gera um relatório completo com as tabelas e os gráficos, com escala de cor ajustável.</p>
+        <h2>Passo a passo</h2>
+        <ol class="passos">
+            <li><b>Dosadores e dados:</b> cadastre cada dosador (marca, modelo, sementes ou adubo, tubo condutor, X<sub>ref</sub>) e suba os arquivos CSV ou um ZIP com uma pasta por dosador.</li>
+            <li><b>Nome dos arquivos:</b> diga o que é cada parte do nome (ex.: <code>c_-5_08</code> = tubo, ângulo, velocidade). Se houver dois ângulos, o sistema pergunta qual é o lateral e qual é o longitudinal.</li>
+            <li><b>Análise:</b> escolha a resposta (padrão: % de espaçamentos aceitáveis), a transformação e os níveis, e rode.</li>
+            <li><b>Resultados:</b> ANOVA, pressupostos, Tukey e desdobramentos; RF + SHAP; mapas de calor.</li>
+            <li><b>Relatório:</b> imprima ou salve em PDF, ou baixe o HTML.</li>
+        </ol>
+        <h2>Regras que o sistema segue</h2>
+        <ul class="regras">
+            <li>Espaçamentos múltiplos, aceitáveis e falhos pelos limites de Coelho (1996): 0,5·X<sub>ref</sub> e 1,5·X<sub>ref</sub>. Com tempo, T<sub>ref</sub> = 3,6·X<sub>ref</sub>/V.</li>
+            <li>Cada repetição de um arquivo é uma parcela. A resposta é calculada por parcela, nunca por semente.</li>
+            <li>A ANOVA usa todos os fatores com mais de um nível e todas as interações. Tukey e desdobramentos usam o QM do erro do modelo completo.</li>
+            <li>O Random Forest usa a mesma resposta da ANOVA, valida deixando tratamentos inteiros de fora e mede importância por permutação. O SHAP é exato e mostra as interações.</li>
+            <li>Na comparação entre dosadores, entram só os tratamentos presentes em todos eles.</li>
+            <li>Tudo roda no seu navegador; os dados ficam guardados neste computador até você exportar.</li>
+        </ul>
+    </section>
+
+    <section class="pagina" id="pag-dosadores">
+        <h1>Dosadores e dados</h1>
+        <p class="intro">Um cartão por dosador. Arquivos no padrão dos ensaios: um CSV por tratamento, primeira coluna <code>n</code> e uma coluna por repetição. Um ZIP com uma pasta por dosador cria os cartões sozinho.</p>
+        <div class="barra-acoes">
+            <button type="button" data-acao="add-dosador">+ Adicionar dosador</button>
+            <label class="botao">📦 Subir ZIP (uma pasta por dosador)<input type="file" id="zip-geral" accept=".zip" hidden></label>
+        </div>
+        <div id="lista-dosadores"></div>
+    </section>
+
+    <section class="pagina" id="pag-fatores">
+        <h1>Nome dos arquivos</h1>
+        <p class="intro">O nome de cada arquivo traz os fatores separados por "_". Diga o que é cada parte.</p>
+        <div id="fatores-corpo"></div>
+    </section>
+
+    <section class="pagina" id="pag-analise">
+        <h1>Análise</h1>
+        <div id="analise-corpo"></div>
+    </section>
+
+    <section class="pagina" id="pag-anova">
+        <h1>ANOVA</h1>
+        <div class="abas" id="abas-anova"></div>
+        <div id="anova-corpo"></div>
+    </section>
+
+    <section class="pagina" id="pag-rf">
+        <h1>Random Forest + SHAP</h1>
+        <div class="abas" id="abas-rf"></div>
+        <div id="rf-corpo"></div>
+    </section>
+
+    <section class="pagina" id="pag-graficos">
+        <h1>Gráficos e escalas de cor</h1>
+        <div id="cores-corpo"></div>
+        <div class="abas" id="abas-graf"></div>
+        <div id="graficos-corpo"></div>
+    </section>
+
+    <section class="pagina" id="pag-relatorio">
+        <h1>Relatório</h1>
+        <div class="barra-acoes">
+            <button type="button" data-acao="imprimir">🖨 Imprimir / salvar PDF</button>
+            <button type="button" data-acao="baixar-html">⬇ Baixar HTML</button>
+            <button type="button" data-acao="baixar-csv">⬇ Parcelas (CSV)</button>
+        </div>
+        <div id="relatorio-corpo" class="relatorio"></div>
+    </section>
+</main>
+
+<div id="progresso" class="progresso" hidden><div class="caixa"><p id="progresso-msg">Calculando…</p><div class="trilho"><div id="progresso-barra"></div></div></div></div>
+<div id="aviso" class="aviso" hidden></div>
+
+<footer class="rodape">
+    <div class="logos">
+        <img src="img/logos/ufpel.png" alt="Universidade Federal de Pelotas" onerror="this.style.display='none'">
+        <img src="img/logos/ceng.png" alt="Centro de Engenharias - UFPel" onerror="this.style.display='none'">
+        <img src="img/logos/ea.png" alt="Engenharia Agrícola - UFPel" onerror="this.style.display='none'">
+        <img src="img/logos/lia.png" alt="Laboratório de Instrumentação Agrícola - UFPel" onerror="this.style.display='none'">
+    </div>
+    <p>© 2026 Comparador de Dosadores</p>
+    <p class="footer-credits"><strong>Desenvolvedor:</strong> Marlon Soares Sigales<br>Laboratório de Instrumentação Agrícola · Engenharia Agrícola · Centro de Engenharias · Universidade Federal de Pelotas</p>
+    <p class="licenca">© 2026 Marlon Sigales. Todos os direitos reservados: copiar, reproduzir ou alterar o código exige autorização do autor.</p>
+</footer>
+
+<script src="js/vendor/jstat.min.js"></script>
+<script src="js/vendor/jszip.min.js"></script>
+<script src="js/estatistica.js?v=20261121a"></script>
+<script src="js/floresta.js?v=20261121a"></script>
+<script src="js/dados.js?v=20261121a"></script>
+<script src="js/analise.js?v=20261121a"></script>
+<script src="js/graficos.js?v=20261121a"></script>
+<script src="js/relatorio.js?v=20261121a"></script>
+<script src="js/app.js?v=20261121a"></script>
+</body>
+</html>

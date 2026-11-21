@@ -1,0 +1,24 @@
+Comparador de Dosadores — todoQA
+© 2026 Marlon Sigales. Todos os direitos reservados; copiar, reproduzir ou alterar exige autorização do autor (ver LICENSE).
+
+Situações: [fazer] [futuro] [resolvido dd/mm/aaaa] [rejeitado]
+
+=== FEITO
+1 [resolvido 21/11/2026] Estrutura do app no padrão dos outros (só navegador, sem CDN, rodapé com logos e licença, Exportar/Importar JSON, Novo, Exemplo).
+2 [resolvido 21/11/2026] Cadastro do dosador: marca, modelo, sementes ou adubo, semente/adubo, tipo (limites de Coelho), tubo condutor (qual), dado bruto (tempo, distância ou massa) e Xref ou sementes por metro.
+3 [resolvido 21/11/2026] Subida de CSV por dosador e de ZIP com uma pasta por dosador.
+4 [resolvido 21/11/2026] Nome dos arquivos: papel de cada parte (condução, inclinação longitudinal, inclinação lateral, velocidade, outro fator, ignorar). Com dois ângulos, o app pergunta qual é o lateral e qual é o longitudinal e só roda depois da resposta.
+5 [resolvido 21/11/2026] Respostas por parcela: % aceitáveis, falhos e múltiplos (Coelho, 1996, limites inclusivos), CV dos aceitáveis, CV total; massa: média e CV.
+6 [resolvido 21/11/2026] ANOVA fatorial com todas as interações (balanceada e desbalanceada tipo II), conferida com statsmodels; pressupostos conferidos com scipy; arcsen√p; Tukey dos efeitos principais e desdobramentos das interações significativas com o QM do erro; IC de cada tratamento; sigmoide; recorte de Andrade (mín, médio, máx).
+7 [resolvido 21/11/2026] RF + SHAP proposto: mesma resposta por parcela, condução como coluna única, validação agrupada por tratamento, permutação, SHAP exato com interações; comparativo ANOVA × SHAP; mapas de previsão, diferença e SHAP.
+8 [resolvido 21/11/2026] Comparação entre dosadores (dosador como fator, tratamentos comuns).
+9 [resolvido 21/11/2026] Gráficos em SVG com escala de cor editável (vermelho–amarelo–verde com verde a partir de 90%, 0–75–100, plasma, plasma esticado, viridis, personalizada) e escala divergente editável.
+10 [resolvido 21/11/2026] Relatório completo: dados e método, conclusões automáticas, gráficos, ANOVA, pressupostos, Tukey, desdobramentos, sigmoide, RF + SHAP, apêndice com médias, referências; imprimir/PDF e baixar HTML; parcelas em CSV.
+11 [resolvido 21/11/2026] Testes: 36 do núcleo (node) e 31 de interface (Playwright, 360 a 1920 px, nome com 4 partes).
+
+=== O QUE FALTA
+12 [fazer] Copiar os logos (ufpel.png, ceng.png, ea.png, lia.png) de outro app para img/logos (não foi possível daqui).
+13 [fazer] Conferir a impressão em PDF num computador de verdade (quebras de página dos mapas grandes).
+14 [fazer] Incluir o app na Central de Aplicativos.
+15 [futuro] Salvar e abrir o projeto na nuvem MEGA da equipe, como nos outros apps.
+16 [futuro] Gerar o PDF direto (jsPDF) além da impressão do navegador.
