@@ -494,9 +494,9 @@ const Relatorio = (() => {
     /** Endereço do app, coautores na geração dos dados e pedido de citação (sempre no relatório). */
     const LINK_APP = 'https://marlonsigales.github.io/app-compara-dosadores/index.html';
     const DESENVOLVEDOR = 'Marlon Soares Sigales';
-    const COAUTORES_PROJETO = ['Ângelo Vieira dos Reis', 'Rafael dos Santos Esteche', 'Jean Carlos Scheunemann', 'Henrique Gonçalves Andrade', 'Roger Toscan Spagnolo', 'Eduardo Walker', 'Fabrício Ardais Medeiros'];
+    const COAUTORES_PROJETO = ['Ângelo Vieira dos Reis', 'Rafael dos Santos Esteche', 'Jean Carlos Scheunemann', 'Henrique Gonçalves Andrade', 'Matheus Albarracin Caselatto', 'Roger Toscan Spagnolo', 'Eduardo Walker', 'Fabrício Ardais Medeiros'];
     const COAUTORES = ['Marlon Soares Sigales', 'Ângelo Vieira dos Reis', 'Rafael dos Santos Esteche', 'Jean Carlos Scheunemann', 'Henrique Gonçalves Andrade', 'Matheus Albarracin Caselatto'];
-    const CITACAO = 'SIGALES, Marlon Soares; SPAGNOLO, Roger Toscan; WALKER, Eduardo; MEDEIROS, Fabrício Ardais; REIS, Ângelo Vieira dos; ESTECHE, Rafael dos Santos; SCHEUNEMANN, Jean Carlos; ANDRADE, Henrique Gonçalves. <i>Comparador de Dosadores</i>: análise de ensaios de dosadores de sementes e adubo por ANOVA e Random Forest + SHAP. Pelotas: Laboratório de Instrumentação Agrícola, Universidade Federal de Pelotas, 2026. Aplicativo web. Disponível em: ' + LINK_APP + '.';
+    const CITACAO = 'SIGALES, Marlon Soares; SPAGNOLO, Roger Toscan; WALKER, Eduardo; MEDEIROS, Fabrício Ardais; REIS, Ângelo Vieira dos; ESTECHE, Rafael dos Santos; SCHEUNEMANN, Jean Carlos; ANDRADE, Henrique Gonçalves; CASELATTO, Matheus Albarracin. <i>Comparador de Dosadores</i>: análise de ensaios de dosadores de sementes e adubo por ANOVA e Random Forest + SHAP. Pelotas: Laboratório de Instrumentação Agrícola, Universidade Federal de Pelotas, 2026. Aplicativo web. Disponível em: ' + LINK_APP + '.';
     function blocoCreditos() {
         const hoje = new Date().toLocaleDateString('pt-BR', { day: 'numeric', month: 'short', year: 'numeric' }).replace(/ de /g, ' ');
         return `<div class="creditos"><p><b>Ferramenta:</b> Comparador de Dosadores — <a href="${LINK_APP}">${LINK_APP}</a></p>
