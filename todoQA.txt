@@ -24,6 +24,6 @@ Situações: [fazer] [futuro] [resolvido dd/mm/aaaa] [rejeitado]
 
 === O QUE FALTA
 13 [fazer] Conferir a impressão em PDF num computador de verdade (quebras de página dos mapas grandes).
-14 [fazer] Incluir o app na Central de Aplicativos.
+14 [resolvido 21/11/2026] App incluído na Central de Aplicativos (categoria "Máquinas agrícolas e ensaios"). Falta ativar o GitHub Pages do repositório.
 15 [futuro] Salvar e abrir o projeto na nuvem MEGA da equipe, como nos outros apps.
 16 [futuro] Gerar o PDF direto (jsPDF) além da impressão do navegador.
