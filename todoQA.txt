@@ -34,6 +34,7 @@ Situações: [fazer] [futuro] [resolvido dd/mm/aaaa] [rejeitado]
 31 [resolvido 21/11/2026] Coautores na geração e coleta dos dados saem do rodapé do app e só aparecem no relatório quando os dados de exemplo são usados.
 32 [resolvido 21/11/2026] Removidos o símbolo e as menções à equipe Inova Agro/EMBRAPII; no lugar, o símbolo do Centro de Engenharias (CEng/UFPel), copiado do Gerador de Horários.
 33 [resolvido 21/11/2026] Ádamo de Sousa Araújo na equipe de desenvolvimento (rodapé, relatório, citação e README).
+34 [resolvido 21/11/2026] Todos na equipe de desenvolvimento (Marlon Soares Sigales, Ádamo de Sousa Araújo, Ângelo Vieira dos Reis, Rafael dos Santos Esteche, Jean Carlos Scheunemann, Henrique Gonçalves Andrade, Matheus Albarracin Caselatto, Roger Toscan Spagnolo, Eduardo Walker, Fabrício Ardais Medeiros, Giusepe Stefanello); removidas as menções a coautoria (projeto e coleta dos dados) do rodapé, do relatório e do README. Substitui os itens 22, 24, 27 a 31 e 33 quanto aos créditos.
 
 === O QUE FALTA
 13 [fazer] Conferir a impressão em PDF num computador de verdade (quebras de página dos mapas grandes).
