@@ -40,7 +40,7 @@ async def main():
         t('relatório tem referências', await pg.locator('#relatorio-corpo >> text=Referências').count() >= 1)
         rel = await pg.inner_text('#relatorio-corpo')
         t('relatório traz o link do app', 'marlonsigales.github.io/app-compara-dosadores' in rel)
-        t('relatório traz os coautores', all(n in rel for n in ['Marlon Soares Sigales', 'Ângelo Vieira dos Reis', 'Rafael dos Santos Esteche', 'Jean Carlos Scheunemann', 'Henrique Gonçalves Andrade']))
+        t('relatório traz os coautores', all(n in rel for n in ['Marlon Soares Sigales', 'Ângelo Vieira dos Reis', 'Rafael dos Santos Esteche', 'Jean Carlos Scheunemann', 'Henrique Gonçalves Andrade', 'Matheus Albarracin Caselatto']))
         t('relatório pede citação', 'Como citar' in rel)
         t('relatório traz coautores do projeto', all(n in rel.split('Coautores do projeto:')[1].split('\n')[0] for n in ['Ângelo Vieira dos Reis', 'Rafael dos Santos Esteche', 'Jean Carlos Scheunemann', 'Henrique Gonçalves Andrade', 'Roger Toscan Spagnolo', 'Eduardo Walker', 'Fabrício Ardais Medeiros']))
         t('relatório pede anexo', 'anexo' in rel)
